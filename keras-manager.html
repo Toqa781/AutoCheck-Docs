@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KerasCheckpointManager and GenericCheckpointManager — AutoCheck Docs</title>
+<meta name="description" content="Saves model weights and metadata for Keras / TensorFlow, plus the framework-agnostic fallback.">
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/search.css">
+<link rel="stylesheet" href="css/content.css">
+</head>
+<body data-page="keras-manager">
+
+<div class="shell">
+
+  <header class="topbar">
+    <button class="topbar__menu-btn" id="menu-btn" aria-label="Toggle navigation">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <a href="index.html" class="topbar__brand">
+      <img src="assets/logo-mark.png" alt="" class="topbar__logo">
+      <span class="topbar__wordmark">AutoCheck</span>
+    </a>
+    <div class="topbar__search">
+      <button class="search-trigger" data-open-search type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span>Search documentation…</span>
+        <kbd>⌘K</kbd>
+      </button>
+    </div>
+    <div class="topbar__right">
+      <span class="topbar__version">v0.9 · graduation build</span>
+      <a class="topbar__icon-link" href="https://github.com/habibaaymannn/AutoCheck" target="_blank" rel="noopener" aria-label="View source on GitHub">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <nav id="sidebar-nav" aria-label="Documentation sections"></nav>
+  </aside>
+
+  <div class="scrim" id="scrim"></div>
+
+  <main class="main">
+    <article class="content">
+
+      <div class="eyebrow">Checkpoint Managers / 7.2</div>
+      <h1 class="page-title">KerasCheckpointManager and GenericCheckpointManager</h1>
+      <p class="page-lede">Saves model weights and training metadata for Keras / TensorFlow, plus the framework-agnostic fallback for everything else.</p>
+
+      <div class="source-files">
+        <span class="source-files__label">Relevant source files</span>
+        <span class="source-chip">mlTrainingModel.py</span>
+      </div>
+
+      <div class="prose">
+        <h2 class="tick-heading" id="keras">KerasCheckpointManager</h2>
+        <p>Mirrors the PyTorch implementation's contract while using TensorFlow-native serialization for weights and optimizer configuration.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Artifact</th><th>Source</th></tr></thead>
+          <tbody>
+            <tr><td>Model weights</td><td><code>model.get_weights()</code></td></tr>
+            <tr><td>Optimizer config</td><td><code>optimizer.get_config()</code></td></tr>
+            <tr><td>Run metadata</td><td>epoch, batch, loss, accuracy from <code>MLStateTracker</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="prose">
+        <h2 id="sklearn">SKLearnCheckpointManager and GenericCheckpointManager</h2>
+        <p>Scikit-Learn estimators don't expose a state dict the way deep learning frameworks do, so <code>SKLearnCheckpointManager</code> persists the fitted estimator via pickling alongside the same metadata file used by the other managers.</p>
+        <p><code>GenericCheckpointManager</code> exists as a registry-based fallback: any object the user explicitly registers gets pickled and restored the same way, which is how AutoCheck supports "custom user-defined objects" without a dedicated manager for every possible type.</p>
+
+        <div class="callout callout--info">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div>
+            <strong>Extensible by registration</strong>
+            <p>Adding support for a new object type doesn't require modifying the core engine — register it with <code>GenericCheckpointManager</code> and it's swept into every checkpoint automatically.</p>
+          </div>
+        </div>
+
+        <h2 id="next">See also</h2>
+        <p><a class="inline-link" href="pytorch-manager.html">PyTorchCheckpointManager</a> for the PyTorch equivalent, or <a class="inline-link" href="checkpoint-managers.html">Checkpoint Managers</a> for the shared storage layout all managers use.</p>
+      </div>
+
+      <div id="pager" class="pager"></div>
+
+      <div class="content-footer">
+        <span>AutoCheck Documentation</span>
+        <span>Faculty of Computers &amp; AI, Cairo University · 2025–2026</span>
+      </div>
+
+    </article>
+
+    <aside class="rail">
+      <div class="rail__label">On this page</div>
+      <ul class="rail__list" id="rail-list"></ul>
+      <div class="rail__card">
+        <h4>Edit this page</h4>
+        <p>Found an inaccuracy or want to expand a section? Source files live in the repository.</p>
+        <a class="edit-link" href="https://github.com/habibaaymannn/AutoCheck" target="_blank" rel="noopener">
+          View on GitHub
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M7 17L17 7M7 7h10v10"/></svg>
+        </a>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div class="palette-overlay" id="palette-overlay">
+  <div class="palette">
+    <div class="palette__input-row">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="palette__input" id="palette-input" placeholder="Search pages, classes, config keys…" autocomplete="off">
+      <span class="palette__esc">ESC</span>
+    </div>
+    <div class="palette__results" id="palette-results"></div>
+  </div>
+</div>
+
+<script src="js/nav-data.js"></script>
+<script src="js/search-index.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

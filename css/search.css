@@ -1,0 +1,167 @@
+/* ==========================================================================
+   Search bar + command palette
+   ========================================================================== */
+
+.search-trigger {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--slate-75);
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  color: var(--slate-500);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.search-trigger:hover {
+  border-color: var(--slate-300);
+  background: var(--surface-0);
+}
+
+.search-trigger svg { flex-shrink: 0; color: var(--slate-400); }
+.search-trigger span { flex: 1; text-align: left; }
+
+.search-trigger kbd {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  background: var(--surface-0);
+  border: 1px solid var(--slate-300);
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: var(--slate-500);
+  box-shadow: 0 1px 0 var(--slate-300);
+}
+
+/* ---- Palette overlay ---- */
+.palette-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 29, 31, 0.32);
+  backdrop-filter: blur(2px);
+  z-index: 100;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+}
+
+.palette-overlay.is-open {
+  display: flex;
+  animation: fade-in var(--dur-med) var(--ease-out);
+}
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.palette {
+  width: min(560px, 90vw);
+  max-height: 70vh;
+  background: var(--surface-0);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(-8px);
+  animation: drop-in var(--dur-med) var(--ease-out) forwards;
+}
+
+@keyframes drop-in {
+  from { transform: translateY(-14px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.palette__input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--slate-200);
+}
+
+.palette__input-row svg { color: var(--slate-400); flex-shrink: 0; }
+
+.palette__input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  color: var(--graphite-900);
+  background: none;
+}
+.palette__input::placeholder { color: var(--slate-400); }
+
+.palette__esc {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--slate-400);
+  border: 1px solid var(--slate-200);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+
+.palette__results {
+  overflow-y: auto;
+  padding: 8px;
+  flex: 1;
+}
+
+.palette__empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--slate-400);
+  font-size: var(--text-sm);
+}
+
+.palette__group-label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--slate-400);
+  padding: 10px 10px 4px;
+}
+
+.palette__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.palette__item.is-selected,
+.palette__item:hover {
+  background: var(--slate-75);
+}
+
+.palette__item-title {
+  font-size: var(--text-sm);
+  color: var(--graphite-900);
+  font-weight: 600;
+}
+
+.palette__item-title mark {
+  background: var(--accent-wash);
+  color: var(--accent-solid);
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+.palette__item-path {
+  font-size: var(--text-xs);
+  color: var(--slate-400);
+  font-family: var(--font-mono);
+}
+
+.palette__item-snippet {
+  font-size: var(--text-xs);
+  color: var(--slate-500);
+  margin-top: 1px;
+}
