@@ -36,12 +36,13 @@ const NAV_TREE = [
     ],
   },
   {
-    group: "State Tracking",
-    items: [
-      { title: "State Tracking", href: "state-tracking.html", id: "state-tracking" },
-      { title: "MLStateTracker", href: "ml-state-tracker.html", id: "ml-state-tracker" },
-      { title: "HPCStateTracker", href: "hpc-state-tracker.html", id: "hpc-state-tracker" },
-    ],
+   group: "State Tracking",
+   items: [
+     { title: "State Tracking",    href: "state-tracking.html",  id: "state-tracking" },
+     { title: "MLStateTracker",    href: "ml-state-tracker.html", id: "ml-state-tracker" },
+     { title: "ML Architecture",   href: "ml-architecture.html",  id: "ml-architecture" },  // ← add this
+     { title: "HPCStateTracker",   href: "hpc-state-tracker.html", id: "hpc-state-tracker" },
+  ],
   },
   {
     group: "Provider & Layers",

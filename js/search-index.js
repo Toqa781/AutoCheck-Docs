@@ -28,6 +28,8 @@ const SEARCH_INDEX = [
   { title: "session_time_limit", path: "Configuration Schema", href: "config-schema.html#checkpointing", snippet: "Stop and save after N minutes to respect HPC job time limits." },
   { title: "State Tracking", path: "State Tracking", href: "state-tracking.html", snippet: "Maintains the current ground truth of the running job." },
   { title: "MLStateTracker", path: "State Tracking", href: "ml-state-tracker.html", snippet: "Tracks epoch, batch, loss, and accuracy for ML training jobs." },
+{ title: "ML Architecture", path: "State Tracking", href: "ml-architecture.html", snippet: "How AutoCheck wraps ML training scripts, captures state via TraceLayer, and persists checkpoints for PyTorch, Keras, and Scikit-Learn." },  // ← add this
+{ title: "HPCStateTracker", path: "State Tracking", href: "hpc-state-tracker.html", snippet: "Tracks elapsed wall-clock time and job phase for HPC simulation jobs." },
   { title: "HPCStateTracker", path: "State Tracking", href: "hpc-state-tracker.html", snippet: "Tracks elapsed wall-clock time and job phase for HPC simulation jobs." },
   { title: "Provider and Layers", path: "Provider & Layers", href: "provider-layers.html", snippet: "TraceLayer for non-invasive inspection and SignalLayer for scheduler signals." },
   { title: "TraceLayer", path: "Provider & Layers", href: "trace-layer.html", snippet: "Uses sys.settrace to inspect user locals without modifying source code." },
