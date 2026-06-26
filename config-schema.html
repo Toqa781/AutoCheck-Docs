@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Configuration Schema Reference — AutoCheck Docs</title>
-<meta name="description" content="Every key under checkpointing and training in config.yaml, with types and defaults.">
+<meta name="description" content="Every key in config.yaml across all sections: language, checkpointing, training, java, and hpc.">
 <link rel="icon" href="assets/logo-mark.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -52,15 +52,28 @@
 
       <div class="eyebrow">Configuration / 4.2</div>
       <h1 class="page-title">Configuration Schema Reference</h1>
-      <p class="page-lede">Complete reference for every key recognized under <code>checkpointing</code> and <code>training</code> in <code>config.yaml</code>.</p>
+      <p class="page-lede">Complete reference for every key recognized in <code>config.yaml</code>, across all five top-level sections.</p>
 
-      <div class="source-files">
-        <span class="source-files__label">Relevant source files</span>
-        <span class="source-chip">config.yaml</span>
+     
+
+      <!-- ── language ─────────────────────────────────── -->
+      <div class="prose">
+        <h2 class="tick-heading" id="language">language</h2>
+        <p>Selects which provider layer AutoCheck instantiates. This key is <strong>always required</strong>.</p>
       </div>
 
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Key</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>language</code></td><td>enum</td><td>—</td><td>One of <code>python</code>, <code>c</code>, <code>cpp</code>, or <code>java</code>. Determines the layer used to attach to, trace, and restore the target process. <strong>Required — no default.</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ── checkpointing ─────────────────────────────── -->
       <div class="prose">
-        <h2 class="tick-heading" id="checkpointing">checkpointing</h2>
+        <h2 id="checkpointing">checkpointing</h2>
       </div>
 
       <div class="table-wrap">
@@ -69,15 +82,17 @@
           <tbody>
             <tr><td><code>enabled</code></td><td>bool</td><td><code>true</code></td><td>Master switch. When <code>false</code>, the controller still runs but never writes a checkpoint.</td></tr>
             <tr><td><code>interval_minutes</code></td><td>int</td><td><code>30</code></td><td>Minutes between automatic interval-triggered checkpoints.</td></tr>
-            <tr><td><code>session_time_limit</code></td><td>int</td><td><code>120</code></td><td>Minutes after which the job stops and writes a final checkpoint, matching an HPC scheduler's allocation.</td></tr>
-            <tr><td><code>storage_path</code></td><td>path</td><td><code>./checkpoints</code></td><td>Root directory for the structured checkpoint layout (<code>stage/epoch-batch/</code>).</td></tr>
-            <tr><td><code>framework</code></td><td>enum</td><td>—</td><td>Either <code>pytorch</code> or <code>tensorflow</code>. Selects which <code>CheckpointManager</code> implementation is instantiated.</td></tr>
+            <tr><td><code>session_time_limit</code></td><td>int</td><td><code>120</code></td><td>Minutes after which the job stops and writes a final checkpoint, matching an HPC scheduler's wall-clock allocation.</td></tr>
+            <tr><td><code>storage_path</code></td><td>path</td><td><code>./checkpoints</code></td><td>Root directory for the structured checkpoint layout (<code>stage/epoch-batch/</code>). Must be writable. Validated at startup — a bad path causes an immediate error rather than a silent failure hours into a run.</td></tr>
+            <tr><td><code>framework</code></td><td>enum</td><td>—</td><td><code>pytorch</code> or <code>tensorflow</code>. Selects the <code>CheckpointManager</code> implementation. <strong>Only applies when <code>language: python</code>. Omit for <code>java</code>, <code>c</code>, or <code>cpp</code>.</strong></td></tr>
           </tbody>
         </table>
       </div>
 
+      <!-- ── training ──────────────────────────────────── -->
       <div class="prose">
         <h2 id="training">training</h2>
+        <p>Python ML jobs only. Used for progress display and resume sanity checks.</p>
       </div>
 
       <div class="table-wrap">
@@ -90,11 +105,61 @@
         </table>
       </div>
 
+      <!-- ── java ──────────────────────────────────────── -->
       <div class="prose">
-        <h2 id="full-example">Full example</h2>
-        <div class="code-block">
-          <div class="code-block__header"><span class="code-block__lang">yaml</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
-          <pre><code><span class="tok-key">checkpointing</span>:
+        <h2 id="java">java</h2>
+        <p>Required when <code>language: java</code>. Configures how AutoCheck connects to the JVM.</p>
+        <p>AutoCheck reads state over <strong>JDWP</strong> (port 5005 by default) and writes restored values via a <strong>control socket</strong> (port 5006 by default), because JDWP returns <code>WRITE_PROTECTED</code> for field writes. Both ports must be free before the run starts.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Key</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>main_class</code></td><td>string</td><td>—</td><td>Fully-qualified Java class containing <code>main()</code> — for example <code>HPCJob</code> or <code>com.example.Simulation</code>. <strong>Required.</strong></td></tr>
+            <tr><td><code>classpath</code></td><td>path</td><td><code>.</code></td><td>Classpath passed to <code>java -cp</code>. Use <code>:</code> (Linux/macOS) or <code>;</code> (Windows) to separate multiple entries.</td></tr>
+            <tr><td><code>jdwp_port</code></td><td>int</td><td><code>5005</code></td><td>Port for JDWP debug attachment (state reading). Must be in the range 1024–65535 and must not equal <code>control_port</code>.</td></tr>
+            <tr><td><code>control_port</code></td><td>int</td><td><code>5006</code></td><td>Port for the write-agent control socket (state injection). Must be in the range 1024–65535 and must not equal <code>jdwp_port</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="prose">
+        <div class="callout callout--warn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <strong>Port conflicts</strong>
+            <p>If <code>jdwp_port</code> (default 5005) is held by an orphaned JVM process from a previous session, AutoCheck will attempt to kill that process automatically at startup. If the port is still unavailable afterward, the run fails immediately with a clear error rather than hanging. Use <code>jdwp_port</code> and <code>control_port</code> to remap to free ports if the defaults are already in use by another application.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── hpc ───────────────────────────────────────── -->
+      <div class="prose">
+        <h2 id="hpc">hpc</h2>
+        <p>Required for C, C++, and Java HPC jobs. Activates session-limited execution and pre-emptive checkpointing to match HPC scheduler wall-clock limits.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Key</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>enabled</code></td><td>bool</td><td><code>false</code></td><td>Activates HPC mode. When <code>true</code>, AutoCheck respects <code>checkpointing.session_time_limit</code> and performs a final pre-emptive checkpoint before the allocation expires.</td></tr>
+            <tr><td><code>scheduler</code></td><td>enum</td><td>—</td><td>Set to <code>jdwp</code> for Java jobs. Controls which mechanism is used to capture state on pre-emption. Omit for C and C++ (ptrace is used automatically).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ── full examples ─────────────────────────────── -->
+      <div class="prose">
+        <h2 id="full-example-python">Full example — Python ML</h2>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">yaml</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+        <pre><code><span class="tok-key">language</span>: <span class="tok-str">python</span>
+
+<span class="tok-key">checkpointing</span>:
   <span class="tok-key">enabled</span>: <span class="tok-kw">true</span>
   <span class="tok-key">interval_minutes</span>: <span class="tok-num">30</span>
   <span class="tok-key">session_time_limit</span>: <span class="tok-num">120</span>
@@ -104,10 +169,36 @@
 <span class="tok-key">training</span>:
   <span class="tok-key">epochs</span>: <span class="tok-num">100</span>
   <span class="tok-key">batch_size</span>: <span class="tok-num">64</span></code></pre>
-        </div>
+      </div>
 
-        <h2 id="next">See also</h2>
-        <p><a class="inline-link" href="config-manager.html">ConfigManager Internals</a> for how these keys are loaded and validated.</p>
+      <div class="prose">
+        <h2 id="full-example-java">Full example — Java HPC</h2>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">yaml</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+        <pre><code><span class="tok-key">language</span>: <span class="tok-str">java</span>
+
+<span class="tok-key">java</span>:
+  <span class="tok-key">main_class</span>: <span class="tok-str">HPCJob</span>
+  <span class="tok-key">classpath</span>: <span class="tok-str">./build</span>
+  <span class="tok-key">jdwp_port</span>: <span class="tok-num">5005</span>
+  <span class="tok-key">control_port</span>: <span class="tok-num">5006</span>
+
+<span class="tok-key">hpc</span>:
+  <span class="tok-key">enabled</span>: <span class="tok-kw">true</span>
+  <span class="tok-key">scheduler</span>: <span class="tok-str">jdwp</span>
+
+<span class="tok-key">checkpointing</span>:
+  <span class="tok-key">enabled</span>: <span class="tok-kw">true</span>
+  <span class="tok-key">interval_minutes</span>: <span class="tok-num">30</span>
+  <span class="tok-key">session_time_limit</span>: <span class="tok-num">120</span>
+  <span class="tok-key">storage_path</span>: <span class="tok-str">./checkpoints</span></code></pre>
+      </div>
+
+      <div class="prose">
+        <h2 id="see-also">See also</h2>
+        <p><a class="inline-link" href="config-manager.html">ConfigManager Internals</a> for how these keys are loaded and validated, and <a class="inline-link" href="configuration.html">Configuration System</a> for a quick-start guide by language.</p>
       </div>
 
       <div id="pager" class="pager"></div>

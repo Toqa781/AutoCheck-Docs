@@ -52,21 +52,35 @@
 
       <div class="eyebrow">Configuration / 4</div>
       <h1 class="page-title">Configuration System</h1>
-      <p class="page-lede">All checkpointing behavior is controlled through a single YAML file — no environment variables, no scattered flags.</p>
+      <p class="page-lede">All checkpointing behavior is controlled through a single <code>config.yaml</code> file — no environment variables, no scattered flags, no code modifications required.</p>
 
-      <div class="source-files">
-        <span class="source-files__label">Relevant source files</span>
-        <span class="source-chip">config.yaml</span>
-        <span class="source-chip">test_config_manager.py</span>
-      </div>
 
       <div class="prose">
-        <h2 class="tick-heading" id="philosophy">Single source of truth</h2>
-        <p>Every parameter that affects how, when, and where AutoCheck saves state lives in one <code>config.yaml</code> file. This keeps a training run reproducible: the config file alongside the checkpoint directory is enough to understand exactly how that run was supervised.</p>
 
-        <div class="code-block">
-          <div class="code-block__header"><span class="code-block__lang">yaml</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
-          <pre><code><span class="tok-key">checkpointing</span>:
+        <h2 class="tick-heading" id="which-config">Which config do I need?</h2>
+        <p>Use the table below to find your starting point. All examples are complete, minimal, and ready to copy.</p>
+
+        <table class="doc-table" style="margin-bottom:1.5rem;">
+          <thead><tr><th>I am running…</th><th>Set <code>language</code> to</th><th>Also set</th></tr></thead>
+          <tbody>
+            <tr><td>A PyTorch or Keras ML model</td><td><code>python</code></td><td><code>checkpointing.framework</code></td></tr>
+            <tr><td>A C or C++ HPC job</td><td><code>c</code> or <code>cpp</code></td><td><code>hpc.enabled: true</code></td></tr>
+            <tr><td>A Java HPC job / ML model</td><td><code>java</code></td><td><code>java.*</code> ports + <code>hpc.enabled: true</code></td></tr>
+          </tbody>
+        </table>
+
+        <h2 class="tick-heading" id="philosophy">Single source of truth</h2>
+        <p>Every parameter that affects how, when, and where AutoCheck saves state lives in one <code>config.yaml</code>. This keeps a run reproducible: the config file alongside the checkpoint directory is enough to understand exactly how that run was supervised.</p>
+
+        <h2 id="example-python">Python ML example</h2>
+        <p>For a PyTorch training job. Replace <code>pytorch</code> with <code>tensorflow</code> for Keras.</p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">yaml</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+        <pre><code><span class="tok-key">language</span>: <span class="tok-str">python</span>
+
+<span class="tok-key">checkpointing</span>:
   <span class="tok-key">enabled</span>: <span class="tok-kw">true</span>
   <span class="tok-key">interval_minutes</span>: <span class="tok-num">30</span>
   <span class="tok-key">session_time_limit</span>: <span class="tok-num">120</span>
@@ -76,22 +90,83 @@
 <span class="tok-key">training</span>:
   <span class="tok-key">epochs</span>: <span class="tok-num">100</span>
   <span class="tok-key">batch_size</span>: <span class="tok-num">64</span></code></pre>
-        </div>
+      </div>
 
+      <div class="prose">
+        <h2 id="example-java">Java HPC example</h2>
+        <p>For a Java program. AutoCheck uses JDWP (port 5005) to read state and a control socket (port 5006) to inject restored values — both must be free before the run starts.</p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">yaml</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+        <pre><code><span class="tok-key">language</span>: <span class="tok-str">java</span>
+
+<span class="tok-key">java</span>:
+  <span class="tok-key">main_class</span>: <span class="tok-str">HPCJob</span>
+  <span class="tok-key">classpath</span>: <span class="tok-str">./build</span>
+  <span class="tok-key">jdwp_port</span>: <span class="tok-num">5005</span>
+  <span class="tok-key">control_port</span>: <span class="tok-num">5006</span>
+
+<span class="tok-key">hpc</span>:
+  <span class="tok-key">enabled</span>: <span class="tok-kw">true</span>
+  <span class="tok-key">scheduler</span>: <span class="tok-str">jdwp</span>
+
+<span class="tok-key">checkpointing</span>:
+  <span class="tok-key">enabled</span>: <span class="tok-kw">true</span>
+  <span class="tok-key">interval_minutes</span>: <span class="tok-num">30</span>
+  <span class="tok-key">session_time_limit</span>: <span class="tok-num">120</span>
+  <span class="tok-key">storage_path</span>: <span class="tok-str">./checkpoints</span></code></pre>
+      </div>
+
+      <div class="prose">
+        <h2 id="example-c">C / C++ HPC example</h2>
+        <p>For C and C++ binaries. AutoCheck uses ptrace-based tracing — no JDWP ports needed.</p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">yaml</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+        <pre><code><span class="tok-key">language</span>: <span class="tok-str">c</span>          <span class="tok-comment"># or cpp</span>
+
+<span class="tok-key">hpc</span>:
+  <span class="tok-key">enabled</span>: <span class="tok-kw">true</span>
+
+<span class="tok-key">checkpointing</span>:
+  <span class="tok-key">enabled</span>: <span class="tok-kw">true</span>
+  <span class="tok-key">interval_minutes</span>: <span class="tok-num">30</span>
+  <span class="tok-key">session_time_limit</span>: <span class="tok-num">120</span>
+  <span class="tok-key">storage_path</span>: <span class="tok-str">./checkpoints</span></code></pre>
+      </div>
+
+      <div class="prose">
         <h2 id="sections">Top-level sections</h2>
       </div>
 
       <div class="table-wrap">
         <table class="doc-table">
-          <thead><tr><th>Section</th><th>Purpose</th></tr></thead>
+          <thead><tr><th>Section</th><th>Purpose</th><th>Required when</th></tr></thead>
           <tbody>
-            <tr><td><code>checkpointing</code></td><td>Everything related to save cadence, storage location, and target framework.</td></tr>
-            <tr><td><code>training</code></td><td>Basic job metadata such as epoch and batch-size targets, used for progress display and resume validation.</td></tr>
+            <tr><td><code>language</code></td><td>Selects the provider layer: <code>python</code>, <code>c</code>, <code>cpp</code>, or <code>java</code>.</td><td>Always</td></tr>
+            <tr><td><code>checkpointing</code></td><td>Save cadence, storage location, and target framework.</td><td>Always</td></tr>
+            <tr><td><code>training</code></td><td>Epoch and batch-size metadata for progress display and resume validation.</td><td>Python ML jobs</td></tr>
+            <tr><td><code>java</code></td><td>JVM connection settings: main class, classpath, and port numbers.</td><td><code>language: java</code></td></tr>
+            <tr><td><code>hpc</code></td><td>HPC mode settings: enables session-limited execution and pre-emptive checkpointing.</td><td>C, C++, or Java HPC jobs</td></tr>
           </tbody>
         </table>
       </div>
 
       <div class="prose">
+        <h2 id="config-location">Where AutoCheck looks for the file</h2>
+        <p>The config path is passed as the first argument to <code>RunnerScript</code>. If omitted, AutoCheck defaults to <code>./config.yaml</code> in the current working directory.</p>
+
+        <div class="code-block">
+          <div class="code-block__header"><span class="code-block__lang">bash</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+          <pre><code><span class="tok-comment"># explicit path</span>
+python runner.py --config /path/to/my_config.yaml
+
+<span class="tok-comment"># defaults to ./config.yaml</span>
+python runner.py</code></pre>
+        </div>
+
         <h2 id="next">Continue to</h2>
         <p><a class="inline-link" href="config-manager.html">ConfigManager Internals</a> for how this file is loaded and validated, or jump straight to the <a class="inline-link" href="config-schema.html">Configuration Schema Reference</a> for every key.</p>
       </div>
