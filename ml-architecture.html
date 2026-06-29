@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ML Architecture — AutoCheck Docs</title>
+<meta name="description" content="How AutoCheck instruments, tracks, and checkpoints Machine Learning training jobs without modifying user code.">
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/search.css">
+<link rel="stylesheet" href="css/content.css">
+</head>
+<body data-page="ml-architecture">
+<div class="shell">
+
+  <!-- ─── Topbar ─────────────────────────────────────────────────── -->
+  <header class="topbar">
+    <button class="topbar__menu-btn" id="menu-btn" aria-label="Toggle navigation">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+    <a href="index.html" class="topbar__brand">
+      <img src="assets/logo-mark.png" alt="" class="topbar__logo">
+      <span class="topbar__wordmark">AutoCheck</span>
+    </a>
+    <div class="topbar__search">
+      <button class="search-trigger" data-open-search type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <span>Search documentation…</span>
+        <kbd>⌘K</kbd>
+      </button>
+    </div>
+    <div class="topbar__right">
+      <span class="topbar__version">v0.9 · graduation build</span>
+      <a class="topbar__icon-link" href="https://github.com/habibaaymannn/AutoCheck" target="_blank" rel="noopener" aria-label="View source on GitHub">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- ─── Sidebar ───────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <nav id="sidebar-nav" aria-label="Documentation sections"></nav>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <!-- ─── Main ──────────────────────────────────────────────────── -->
+  <main class="main">
+    <article class="content">
+
+      <div class="eyebrow">Architecture / ML Mode</div>
+      <h1 class="page-title">ML Training Architecture</h1>
+      <p class="page-lede">How AutoCheck wraps an unmodified ML training script, intercepts its variables in real time, and persists model state across PyTorch, Keras, and Scikit-Learn without a single import in user code.</p>
+
+      <div class="source-files">
+        <span class="source-files__label">Relevant source files</span>
+        <span class="source-chip">stateTracker/MLStateTracker.py</span>
+        <span class="source-chip">checkpointManager/PyTorchCheckpointManager.py</span>
+        <span class="source-chip">checkpointManager/KerasCheckpointManager.py</span>
+        <span class="source-chip">layers/TraceLayer.py</span>
+        <span class="source-chip">Testing_phase/mlTrainingModel.py</span>
+        <span class="source-chip">Testing_phase/mlTrainingKerasModel.py</span>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════
+           §1  Overview
+      ═══════════════════════════════════════════════════════════ -->
+      <div class="prose">
+        <h2 id="overview">Overview</h2>
+        <p>
+          AutoCheck operates as a <em>sidecar</em> to the user's training script. The user never modifies their training
+          code — they simply invoke AutoCheck via the CLI and point it at their script. From that moment, AutoCheck
+          manages the entire checkpoint lifecycle: it detects the training framework in use, instruments the running
+          process via <code>sys.settrace</code>, and periodically serializes the complete training state to disk.
+        </p>
+        <p>
+          This page covers the ML-specific half of that architecture. For the HPC variant
+          (signal-based, iteration-counter-driven) see
+          <a class="inline-link" href="hpc-state-tracker.html">HPC Architecture</a>.
+        </p>
+
+        <div class="callout callout--info">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          <div>
+            <strong>Zero-code-modification guarantee</strong>
+            <p>
+              Every example on this page — PyTorch, Keras, and Scikit-Learn — was run against scripts that contain
+              <em>no</em> AutoCheck imports and no explicit save calls. State is captured entirely through the
+              <code>TraceLayer</code> inspection mechanism.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════
+           §2  Component map
+      ═══════════════════════════════════════════════════════════ -->
+      <div class="prose">
+        <h2 id="components">Component map</h2>
+        <p>
+          Five components work in concert for every ML checkpointing run. The table below names each one, maps it to
+          its code entity, and summarises its single responsibility.
+        </p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead>
+            <tr><th>Role</th><th>Code entity</th><th>Responsibility</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>The Brain</strong></td>
+              <td><code>AutonomousController</code></td>
+              <td>Decides when to save, load, or stop based on epoch/step triggers defined in config.</td>
+            </tr>
+            <tr>
+              <td><strong>The Bridge</strong></td>
+              <td><code>RunnerScript</code></td>
+              <td>Entry point. Bootstraps the user's script in a daemon thread and starts the controller loop.</td>
+            </tr>
+            <tr>
+              <td><strong>The Monitor</strong></td>
+              <td><code>MLStateTracker</code></td>
+              <td>Holds the live ground-truth of the training run: epoch, global_step, model weights, optimizer state.</td>
+            </tr>
+            <tr>
+              <td><strong>The Inspector</strong></td>
+              <td><code>TraceLayer</code></td>
+              <td>Uses <code>sys.settrace</code> to read local variables out of the user script without any code changes.</td>
+            </tr>
+            <tr>
+              <td><strong>The Serialiser</strong></td>
+              <td><code>PyTorchCheckpointManager</code> / <code>KerasCheckpointManager</code></td>
+              <td>Handles atomic writes and checkpoint rotation for the specific ML framework in use.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════
+           §3  Execution flow diagram
+      ═══════════════════════════════════════════════════════════ -->
+      <div class="prose">
+        <h2 id="execution-flow">Execution flow</h2>
+        <p>
+          The diagram below shows what happens from the moment the user runs
+          <code>autocheck run --script train.py</code> through to the first checkpoint being written to disk.
+        </p>
+      </div>
+
+      <!-- SVG diagram — inline, no external deps -->
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 760 420" xmlns="http://www.w3.org/2000/svg"
+             role="img" aria-label="ML execution flow from CLI to checkpoint file"
+             style="width:100%;max-width:760px;display:block;margin:0 auto;font-family:inherit;">
+          <defs>
+            <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill="#6B7280"/>
+            </marker>
+            <marker id="arr-accent" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill="#3B5BDB"/>
+            </marker>
+          </defs>
+
+          <!-- Lane backgrounds -->
+          <rect x="0"   y="0" width="760" height="420" rx="10" fill="#F8F9FA"/>
+          <rect x="10"  y="10" width="145" height="400" rx="8" fill="#EEF2FF" opacity="0.7"/>
+          <rect x="165" y="10" width="145" height="400" rx="8" fill="#F0FDF4" opacity="0.7"/>
+          <rect x="320" y="10" width="145" height="400" rx="8" fill="#FFF7ED" opacity="0.7"/>
+          <rect x="475" y="10" width="140" height="400" rx="8" fill="#FDF4FF" opacity="0.7"/>
+          <rect x="625" y="10" width="125" height="400" rx="8" fill="#F0F9FF" opacity="0.7"/>
+
+          <!-- Lane headers -->
+          <text x="82"  y="36" text-anchor="middle" font-size="11" font-weight="600" fill="#3730A3">CLI / RunnerScript</text>
+          <text x="237" y="36" text-anchor="middle" font-size="11" font-weight="600" fill="#166534">AutonomousController</text>
+          <text x="392" y="36" text-anchor="middle" font-size="11" font-weight="600" fill="#9A3412">MLStateTracker</text>
+          <text x="545" y="36" text-anchor="middle" font-size="11" font-weight="600" fill="#6B21A8">TraceLayer</text>
+          <text x="687" y="36" text-anchor="middle" font-size="11" font-weight="600" fill="#0C4A6E">CheckpointManager</text>
+
+          <!-- Nodes -->
+          <!-- 1. CLI -->
+          <rect x="18"  y="55" width="128" height="36" rx="6" fill="#3730A3"/>
+          <text x="82"  y="77" text-anchor="middle" font-size="11" fill="#fff" font-weight="500">autocheck run</text>
+
+          <!-- 2. RunnerScript -->
+          <rect x="18"  y="130" width="128" height="36" rx="6" fill="#4F46E5"/>
+          <text x="82"  y="152" text-anchor="middle" font-size="11" fill="#fff" font-weight="500">RunnerScript</text>
+
+          <!-- 3. Thread fork -->
+          <rect x="18"  y="205" width="128" height="36" rx="6" fill="#818CF8" opacity="0.9"/>
+          <text x="82"  y="222" text-anchor="middle" font-size="11" fill="#fff">spawn daemon thread</text>
+          <text x="82"  y="234" text-anchor="middle" font-size="10" fill="#EEF2FF">(user script)</text>
+
+          <!-- 4. Controller loop -->
+          <rect x="173" y="130" width="128" height="36" rx="6" fill="#16A34A"/>
+          <text x="237" y="148" text-anchor="middle" font-size="11" fill="#fff" font-weight="500">checkpoint loop</text>
+          <text x="237" y="160" text-anchor="middle" font-size="10" fill="#DCFCE7">every N epochs / steps</text>
+
+          <!-- 5. trigger check -->
+          <rect x="173" y="205" width="128" height="36" rx="6" fill="#4ADE80" opacity="0.85"/>
+          <text x="237" y="222" text-anchor="middle" font-size="11" fill="#166534">trigger condition?</text>
+          <text x="237" y="234" text-anchor="middle" font-size="10" fill="#166534">epoch % interval == 0</text>
+
+          <!-- 6. MLStateTracker.update_ckpt -->
+          <rect x="328" y="205" width="128" height="36" rx="6" fill="#EA580C"/>
+          <text x="392" y="222" text-anchor="middle" font-size="11" fill="#fff">update_ckpt_method()</text>
+          <text x="392" y="234" text-anchor="middle" font-size="10" fill="#FED7AA">fetch epoch, step, batch</text>
+
+          <!-- 7. update_all -->
+          <rect x="328" y="280" width="128" height="36" rx="6" fill="#C2410C"/>
+          <text x="392" y="297" text-anchor="middle" font-size="11" fill="#fff">update_all_from_prov()</text>
+          <text x="392" y="309" text-anchor="middle" font-size="10" fill="#FED7AA">model, optimizer, rng…</text>
+
+          <!-- 8. TraceLayer.fetch -->
+          <rect x="483" y="205" width="128" height="36" rx="6" fill="#9333EA"/>
+          <text x="547" y="222" text-anchor="middle" font-size="11" fill="#fff">TraceLayer.fetch()</text>
+          <text x="547" y="234" text-anchor="middle" font-size="10" fill="#F3E8FF">sys.settrace inspect</text>
+
+          <!-- 9. TraceLayer.fetch_all -->
+          <rect x="483" y="280" width="128" height="36" rx="6" fill="#7E22CE"/>
+          <text x="547" y="297" text-anchor="middle" font-size="11" fill="#fff">TraceLayer.fetch_all()</text>
+          <text x="547" y="309" text-anchor="middle" font-size="10" fill="#F3E8FF">state_dict extraction</text>
+
+          <!-- 10. snapshot -->
+          <rect x="328" y="355" width="128" height="36" rx="6" fill="#92400E"/>
+          <text x="392" y="377" text-anchor="middle" font-size="11" fill="#fff">snapshot()</text>
+          <text x="392" y="389" text-anchor="middle" font-size="10" fill="#FDE68A">package checkpoint dict</text>
+
+          <!-- 11. CheckpointManager -->
+          <rect x="633" y="355" width="112" height="36" rx="6" fill="#0369A1"/>
+          <text x="689" y="372" text-anchor="middle" font-size="11" fill="#fff">save_checkpoint()</text>
+          <text x="689" y="384" text-anchor="middle" font-size="10" fill="#BAE6FD">atomic write .pt / .h5</text>
+
+          <!-- Arrows -->
+          <!-- CLI → RunnerScript -->
+          <line x1="82" y1="91" x2="82" y2="128" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arr)"/>
+          <!-- RunnerScript → loop -->
+          <line x1="146" y1="148" x2="171" y2="148" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arr)"/>
+          <!-- RunnerScript → thread -->
+          <line x1="82" y1="166" x2="82" y2="203" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arr)" stroke-dasharray="4 3"/>
+          <!-- loop → trigger -->
+          <line x1="237" y1="166" x2="237" y2="203" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arr)"/>
+          <!-- trigger → update_ckpt -->
+          <line x1="301" y1="223" x2="326" y2="223" stroke="#3B5BDB" stroke-width="1.5" marker-end="url(#arr-accent)"/>
+          <!-- trigger → update_all -->
+          <line x1="237" y1="241" x2="237" y2="265" stroke="#6B7280" stroke-width="1.2" stroke-dasharray="3 3"/>
+          <line x1="237" y1="265" x2="326" y2="297" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arr)" stroke-dasharray="3 3"/>
+          <!-- update_ckpt → TraceLayer.fetch -->
+          <line x1="456" y1="223" x2="481" y2="223" stroke="#3B5BDB" stroke-width="1.5" marker-end="url(#arr-accent)"/>
+          <!-- update_all → TraceLayer.fetch_all -->
+          <line x1="456" y1="297" x2="481" y2="297" stroke="#3B5BDB" stroke-width="1.5" marker-end="url(#arr-accent)"/>
+          <!-- update_all → snapshot -->
+          <line x1="392" y1="316" x2="392" y2="353" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arr)"/>
+          <!-- snapshot → CheckpointManager -->
+          <line x1="456" y1="373" x2="631" y2="373" stroke="#3B5BDB" stroke-width="1.5" marker-end="url(#arr-accent)"/>
+
+          <!-- Labels on dashed lines -->
+          <text x="145" y="195" font-size="9" fill="#6B7280">user script thread</text>
+          <text x="243" y="260" font-size="9" fill="#6B7280">full sync</text>
+        </svg>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════
+           §4  MLStateTracker
+      ═══════════════════════════════════════════════════════════ -->
+      <div class="prose">
+        <h2 id="mlstatetracker">MLStateTracker</h2>
+        <p>
+          <code>MLStateTracker</code> is the source of truth for a running ML job. It inherits from
+          <code>BaseTracker</code> and splits the variables it manages into two lists with very different
+          access costs.
+        </p>
+
+        <h3 id="poll-vs-target">Poll list vs. target list</h3>
+        <p>
+          The controller needs to check whether a checkpoint trigger has fired on every loop iteration — potentially
+          thousands of times per minute. Deserialising a full model weights tensor on every check would be
+          prohibitively expensive. The split below solves that:
+        </p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead>
+            <tr><th>List</th><th>Fields</th><th>Access cost</th><th>Used for</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Poll list</strong></td>
+              <td><code>epoch</code>, <code>global_step</code>, <code>batch_idx</code></td>
+              <td>Cheap — scalar integers</td>
+              <td>Evaluating trigger conditions (<code>epoch % interval == 0</code>)</td>
+            </tr>
+            <tr>
+              <td><strong>Target list</strong></td>
+              <td><code>model</code>, <code>optimizer</code>, <code>scheduler</code>, <code>rng_state</code>, <code>amp</code></td>
+              <td>Expensive — full tensor dicts</td>
+              <td>Actual checkpoint payload written to disk</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="prose">
+        <h3 id="key-methods">Key methods</h3>
+
+        <h4 id="update-ckpt-method"><code>update_ckpt_method()</code></h4>
+        <p>
+          Calls <code>provider.fetch_ckpt()</code> to retrieve only the poll list. The
+          <code>AutonomousController</code> calls this on every loop tick. It validates that the returned
+          dictionary contains all required integer fields and raises <code>TypeError</code> immediately if any
+          are missing — so misconfigured scripts fail fast rather than silently skipping checkpoints.
+        </p>
+
+        <h4 id="update-all"><code>update_all_from_prov()</code></h4>
+        <p>
+          Calls <code>provider.fetch_all()</code>, which triggers the <code>TraceLayer</code> to capture
+          <code>state_dict()</code> from the model and optimizer objects inside the running user script.
+          This is only called immediately before writing a checkpoint, keeping the expensive path off the
+          hot loop.
+        </p>
+
+        <h4 id="snapshot"><code>snapshot()</code></h4>
+        <p>
+          Calls <code>update_all_from_prov()</code> then packages the training state into a single
+          dictionary that includes metadata alongside the weights:
+        </p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header">
+          <span class="code-block__lang">python</span>
+          <button class="code-block__copy" aria-label="Copy code">Copy</button>
+        </div>
+        <pre><code><span class="tok-com"># Fields included in every ML snapshot dict</span>
+{
+    <span class="tok-str">"run_id"</span>:             <span class="tok-kw">str</span>,    <span class="tok-com"># unique ID for this run</span>
+    <span class="tok-str">"method"</span>:            <span class="tok-str">"ml"</span>,
+    <span class="tok-str">"start_time"</span>:        <span class="tok-kw">float</span>,  <span class="tok-com"># Unix timestamp of job start</span>
+    <span class="tok-str">"epoch"</span>:             <span class="tok-kw">int</span>,
+    <span class="tok-str">"global_step"</span>:       <span class="tok-kw">int</span>,
+    <span class="tok-str">"batch_idx"</span>:         <span class="tok-kw">int</span>,
+    <span class="tok-str">"model_state_dict"</span>:  <span class="tok-kw">dict</span>,  <span class="tok-com"># result of model.state_dict()</span>
+    <span class="tok-str">"optimizer_state"</span>:   <span class="tok-kw">dict</span>,  <span class="tok-com"># result of optimizer.state_dict()</span>
+    <span class="tok-str">"scheduler_state"</span>:   <span class="tok-kw">dict</span>,  <span class="tok-com"># optional, None if not present</span>
+    <span class="tok-str">"rng_state"</span>:         <span class="tok-kw">bytes</span>, <span class="tok-com"># torch.get_rng_state()</span>
+    <span class="tok-str">"amp"</span>:               <span class="tok-kw">dict</span>,  <span class="tok-com"># AMP scaler state, None if not used</span>
+}</code></pre>
+      </div>
+
+      <div class="prose">
+        <h4 id="set-all-from-ckpt"><code>set_all_from_ckpt()</code></h4>
+        <p>
+          Restores state in two steps: first it calls <code>provider.restore(state)</code> to inject
+          values back into the running script's memory space (so the training loop resumes at the right
+          epoch without any code from the user), then it updates the tracker's own attributes to match.
+        </p>
+
+        <div class="callout callout--warning">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <div>
+            <strong>Validation at construction time</strong>
+            <p>
+              The <code>validate()</code> call in the constructor checks that the environment exposes the
+              required variables. If your training script doesn't define an <code>epoch</code> loop variable,
+              the tracker raises a <code>KeyError</code> before the first checkpoint attempt — not silently later.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════
+           §5  Framework support
+      ═══════════════════════════════════════════════════════════ -->
+      <div class="prose">
+        <h2 id="framework-support">Framework support</h2>
+        <p>
+          AutoCheck ships three <code>CheckpointManager</code> implementations for ML workloads. The correct
+          one is selected automatically based on the objects detected in the user script's scope.
+        </p>
+      </div>
+
+      <!-- ── PyTorch ── -->
+      <div class="prose">
+        <h3 id="pytorch">PyTorch — <code>PyTorchCheckpointManager</code></h3>
+        <p>
+          The PyTorch manager uses <code>torch.save</code> / <code>torch.load</code> and is the most
+          fully featured of the three. It is designed around three guarantees: atomic writes (so a crash
+          during save never corrupts the previous checkpoint), device-agnostic loading (a GPU checkpoint
+          can be loaded on CPU and vice versa), and automatic checkpoint rotation so the storage directory
+          doesn't grow unboundedly.
+        </p>
+
+        <h4 id="naming-convention">File naming convention</h4>
+        <p>
+          Checkpoints are named <code>checkpoint_00000500.pt</code> (8-digit zero-padded global step).
+          The manager scans the directory with a compiled regular expression and sorts by the extracted
+          integer — no reliance on filesystem modification times.
+        </p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header">
+          <span class="code-block__lang">python</span>
+          <button class="code-block__copy" aria-label="Copy code">Copy</button>
+        </div>
+        <pre><code><span class="tok-com"># Pattern used to discover checkpoint files</span>
+<span class="tok-key">_CKPT_RE</span> = re.<span class="tok-fn">compile</span>(<span class="tok-str">r"^checkpoint_(\d+)\.pt$"</span>)
+
+<span class="tok-com"># Atomic save: write to temp file, then os.replace()</span>
+<span class="tok-kw">def</span> <span class="tok-fn">_atomic_save</span>(self, payload, path):
+    tmp = path + <span class="tok-str">".tmp"</span>
+    torch.<span class="tok-fn">save</span>(payload, tmp)
+    os.<span class="tok-fn">replace</span>(tmp, path)   <span class="tok-com"># atomic on POSIX, near-atomic on Windows</span></code></pre>
+      </div>
+
+      <div class="prose">
+        <h4 id="pytorch-payload">Checkpoint payload</h4>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead>
+            <tr><th>Key</th><th>Source</th><th>Required</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>step</code></td><td>Current <code>global_step</code></td><td>Yes</td></tr>
+            <tr><td><code>model_state_dict</code></td><td><code>model.state_dict()</code></td><td>Yes</td></tr>
+            <tr><td><code>optimizer_state_dict</code></td><td><code>optimizer.state_dict()</code></td><td>Yes</td></tr>
+            <tr><td><code>epoch</code></td><td>Current epoch counter</td><td>No (via kwargs)</td></tr>
+            <tr><td><code>scheduler_state_dict</code></td><td><code>scheduler.state_dict()</code></td><td>No (via kwargs)</td></tr>
+            <tr><td><code>rng_state</code></td><td><code>torch.get_rng_state()</code></td><td>No (via kwargs)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="prose">
+        <h4 id="two-interfaces">Two interaction interfaces</h4>
+        <p>
+          The manager exposes two distinct API surfaces. Internal code (the controller) always uses the
+          abstract contract interface; the high-level helpers exist for manual or test use.
+        </p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead>
+            <tr><th>Interface</th><th>Methods</th><th>Argument types</th><th>Used by</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>High-level helper</td>
+              <td><code>save()</code>, <code>load()</code></td>
+              <td>Explicit <code>nn.Module</code>, <code>optim.Optimizer</code></td>
+              <td>Manual use, tests, <code>RunnerScript</code></td>
+            </tr>
+            <tr>
+              <td>Controller interface</td>
+              <td><code>save_checkpoint()</code>, <code>load_checkpoint()</code></td>
+              <td>Generic <code>Dict[str, Any]</code> snapshot</td>
+              <td><code>AutonomousController</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ── Keras ── -->
+      <div class="prose">
+        <h3 id="keras">Keras / TensorFlow — <code>KerasCheckpointManager</code></h3>
+        <p>
+          The Keras manager handles <code>tf.train.Checkpoint</code> objects transparently. It is specifically
+          designed for the more demanding <em>manual gradient-tape loop</em> pattern — unlike
+          <code>model.fit()</code>, a gradient-tape loop requires capturing optimizer state and
+          <code>global_step</code> mid-loop, which the standard Keras callbacks cannot reach.
+        </p>
+        <p>
+          Resume logic: when restoring, the manager provides <code>batch_idx</code> back to the
+          user script's local scope, and the script's native skip logic
+          (<code>if batch_idx &lt; resume_from: continue</code>) picks up exactly where training left off.
+          No custom callback or dataset re-winding is required.
+        </p>
+
+        <div class="callout callout--info">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          <div>
+            <strong>Why manual gradient-tape?</strong>
+            <p>
+              <code>model.fit()</code> hides the epoch/batch loop inside Keras internals, making the loop
+              variables invisible to <code>TraceLayer</code>. AutoCheck therefore requires — and strongly
+              encourages — the explicit training loop pattern for Keras jobs where mid-epoch resumption is
+              needed.
+            </p>
+          </div>
+        </div>
+
+        <!-- ── Scikit-Learn ── -->
+        <h3 id="sklearn">Scikit-Learn — <code>SKLearnCheckpointManager</code></h3>
+        <p>
+          Scikit-Learn models are not iterative in the same sense as neural networks, so the manager
+          serialises the entire model object via <code>joblib</code>. The expected checkpoint dict structure
+          is:
+        </p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header">
+          <span class="code-block__lang">python</span>
+          <button class="code-block__copy" aria-label="Copy code">Copy</button>
+        </div>
+        <pre><code><span class="tok-com"># SKLearnCheckpointManager expected payload</span>
+{
+    <span class="tok-str">"model"</span>:   model,    <span class="tok-com"># fitted sklearn estimator or Pipeline</span>
+    <span class="tok-str">"scaler"</span>:  scaler,   <span class="tok-com"># optional preprocessor (StandardScaler, etc.)</span>
+    <span class="tok-str">"X_train"</span>: X_train,  <span class="tok-com"># training data split, for later eval</span>
+    <span class="tok-str">"X_test"</span>:  X_test,
+    <span class="tok-str">"y_train"</span>: y_train,
+    <span class="tok-str">"y_test"</span>:  y_test,
+}</code></pre>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════
+           §6  TraceLayer — how variables are captured
+      ═══════════════════════════════════════════════════════════ -->
+      <div class="prose">
+        <h2 id="tracelayer">TraceLayer — variable capture</h2>
+        <p>
+          The <code>TraceLayer</code> is what makes zero-code-modification possible. Python's
+          <code>sys.settrace</code> hook fires on every function call, line execution, and return inside
+          the traced thread. AutoCheck installs a trace function when the user's script thread starts and
+          uses it to maintain a live snapshot of the script's local variable namespace.
+        </p>
+        <p>
+          When the controller calls <code>provider.fetch_ckpt()</code>, the trace layer reads the scalar
+          integers (<code>epoch</code>, <code>global_step</code>, <code>batch_idx</code>) directly from
+          the most recently captured locals. When <code>provider.fetch_all()</code> is called, it
+          additionally calls <code>.state_dict()</code> on any discovered <code>nn.Module</code> and
+          <code>Optimizer</code> objects — without the user script doing anything.
+        </p>
+
+        <div class="callout callout--warning">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <div>
+            <strong>Performance note</strong>
+            <p>
+              <code>sys.settrace</code> adds a small overhead to every executed line in the traced thread.
+              In practice this is negligible compared to GPU computation, but for CPU-bound tight loops the
+              overhead may be measurable. The stress-test script (<code>ml_user.py</code>, 1 000 epochs ×
+              10 000 iterations) showed no significant throughput regression in testing.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════
+           §7  Testing examples
+      ═══════════════════════════════════════════════════════════ -->
+      <div class="prose">
+        <h2 id="examples">Testing examples</h2>
+        <p>
+          The <code>Testing_phase/</code> directory ships four scripts that cover the full range of ML
+          patterns AutoCheck supports:
+        </p>
+
+        <h3 id="pytorch-mnist">PyTorch MNIST (<code>mlTrainingModel.py</code>)</h3>
+        <p>
+          A real CNN (two conv layers + two fully-connected layers) trained on the MNIST digit dataset
+          via <code>torchvision</code>. This is the canonical integration test: it exercises model,
+          optimizer, and scheduler checkpointing together with a <code>DataLoader</code> pipeline.
+        </p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header">
+          <span class="code-block__lang">python</span>
+          <button class="code-block__copy" aria-label="Copy code">Copy</button>
+        </div>
+        <pre><code><span class="tok-com"># Variables that AutoCheck captures from this script — user writes nothing special</span>
+model     = <span class="tok-fn">CNN</span>().<span class="tok-fn">to</span>(device)          <span class="tok-com"># nn.Module</span>
+optimizer = optim.<span class="tok-fn">Adam</span>(model.<span class="tok-fn">parameters</span>())
+scheduler = lr_scheduler.<span class="tok-fn">StepLR</span>(optimizer, step_size=<span class="tok-num">5</span>)
+epoch     = <span class="tok-num">0</span>                           <span class="tok-com"># poll list</span>
+global_step = <span class="tok-num">0</span>                        <span class="tok-com"># poll list</span>
+batch_idx = <span class="tok-num">0</span>                          <span class="tok-com"># poll list</span></code></pre>
+      </div>
+
+      <div class="prose">
+        <h3 id="keras-mnist">Keras MNIST (<code>mlTrainingKerasModel.py</code>)</h3>
+        <p>
+          A <code>Sequential</code> model with <code>Conv2D</code> and <code>MaxPooling2D</code> layers,
+          trained via a manual <code>tf.GradientTape</code> loop. Demonstrates mid-epoch resumption: after
+          restore, the script skips batches with <code>if batch_idx &lt; resume_from: continue</code>.
+        </p>
+
+        <h3 id="sklearn-iris">Scikit-Learn Iris (<code>model_sklearn.py</code>)</h3>
+        <p>
+          A <code>StandardScaler + RandomForestClassifier</code> pipeline on the Iris dataset. Shows
+          the underlying dictionary structure the <code>SKLearnCheckpointManager</code> expects and how
+          <code>joblib</code> serialises the entire fitted estimator.
+        </p>
+
+        <h3 id="minimal-loop">Minimal stress-test (<code>ml_user.py</code>)</h3>
+        <p>
+          A stripped-down <code>nn.Linear(10, 2)</code> model running 1 000 epochs × 10 000 iterations.
+          Used to verify that <code>TraceLayer</code> can intercept <code>inputs</code>,
+          <code>outputs</code>, and <code>loss</code> in a tight numerical loop without degrading
+          throughput.
+        </p>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════
+           §8  Quick-start
+      ═══════════════════════════════════════════════════════════ -->
+      <div class="prose">
+        <h2 id="quick-start">Running an ML job</h2>
+        <p>
+          The commands below assume AutoCheck is installed and a <code>config.yaml</code> exists in the
+          working directory. See <a class="inline-link" href="configuration.html">Configuration</a> for
+          the full schema.
+        </p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header">
+          <span class="code-block__lang">bash</span>
+          <button class="code-block__copy" aria-label="Copy code">Copy</button>
+        </div>
+        <pre><code><span class="tok-com"># Start a new training run</span>
+autocheck run --script train.py --mode ml --config config.yaml
+
+<span class="tok-com"># Resume from the latest checkpoint</span>
+autocheck resume --script train.py --mode ml --config config.yaml
+
+<span class="tok-com"># Stop a running job gracefully (flushes a final checkpoint first)</span>
+autocheck stop --pid &lt;PID&gt;</code></pre>
+      </div>
+
+      <div class="prose">
+        <p>
+          Checkpoints land in the directory specified by <code>storage_path</code> in your config, under
+          <code>ml/checkpoint_XXXXXXXX.pt</code>. The manager keeps the
+          <code>max_to_keep</code> most recent files and prunes older ones automatically.
+        </p>
+      </div>
+
+      <div id="pager" class="pager"></div>
+
+      <div class="content-footer">
+        <span>AutoCheck Documentation</span>
+        <span>Faculty of Computers &amp; AI, Cairo University · 2025–2026</span>
+      </div>
+
+    </article>
+
+    <!-- ── Right rail ─────────────────────────────────────────── -->
+    <aside class="rail">
+      <div class="rail__label">On this page</div>
+      <ul class="rail__list" id="rail-list"></ul>
+      <div class="rail__card">
+        <h4>Edit this page</h4>
+        <p>Found an inaccuracy or want to expand a section? Source files live in the repository.</p>
+        <a class="edit-link" href="https://github.com/habibaaymannn/AutoCheck" target="_blank" rel="noopener">
+          View on GitHub
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <path d="M7 17L17 7M7 7h10v10"/>
+          </svg>
+        </a>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- ─── Command palette ───────────────────────────────────────── -->
+<div class="palette-overlay" id="palette-overlay">
+  <div class="palette">
+    <div class="palette__input-row">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" class="palette__input" id="palette-input"
+             placeholder="Search pages, classes, config keys…" autocomplete="off">
+      <span class="palette__esc">ESC</span>
+    </div>
+    <div class="palette__results" id="palette-results"></div>
+  </div>
+</div>
+
+<script src="js/nav-data.js"></script>
+<script src="js/search-index.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
