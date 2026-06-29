@@ -12,63 +12,39 @@ const NAV_TREE = [
     ],
   },
   {
-    group: "CLI & Orchestration",
+    group: "User Guide",
     items: [
-      { title: "CLI & Orchestration Layer", href: "cli-orchestration.html", id: "cli-orchestration" },
-      { title: "CLI Reference", href: "cli-reference.html", id: "cli-reference" },
-      { title: "RunnerScript Orchestrator", href: "runnerscript.html", id: "runnerscript" },
+      { title: "Configuration", href: "configuration.html", id: "configuration" },
+      { title: "Language Support", href: "language-support.html", id: "language-support" },
+      { title: "Checkpointing", href:"checkpoint-loop.html", id: "checkpoint-loop" },
+      { title: "Resume Jobs", href:"resume-jobs.html", id: "resume-jobs" },
     ],
   },
   {
-    group: "Controller & Execution",
+    group: "Features",
     items: [
-      { title: "Controller & Execution Engine", href: "controller.html", id: "controller" },
-      { title: "Checkpoint Loop & Triggers", href: "checkpoint-loop.html", id: "checkpoint-loop" },
-      { title: "Signal Handling & PID", href: "signal-handling.html", id: "signal-handling" },
-    ],
-  },
-  {
-    group: "Configuration",
-    items: [
-      { title: "Configuration System", href: "configuration.html", id: "configuration" },
-      { title: "ConfigManager Internals", href: "config-manager.html", id: "config-manager" },
-      { title: "Configuration Schema", href: "config-schema.html", id: "config-schema" },
-    ],
-  },
-  {
-   group: "State Tracking",
-   items: [
-     { title: "State Tracking",    href: "state-tracking.html",  id: "state-tracking" },
-     { title: "MLStateTracker",    href: "ml-state-tracker.html", id: "ml-state-tracker" },
-     { title: "ML Architecture",   href: "ml-architecture.html",  id: "ml-architecture" },  // ← add this
-     { title: "HPCStateTracker",   href: "hpc-state-tracker.html", id: "hpc-state-tracker" },
-  ],
-  },
-  {
-    group: "Provider & Layers",
-    items: [
-      { title: "Provider & Layers", href: "provider-layers.html", id: "provider-layers" },
-      { title: "TraceLayer", href: "trace-layer.html", id: "trace-layer" },
-      { title: "SignalLayer", href: "signal-layer.html", id: "signal-layer" },
-    ],
-  },
-  {
-    group: "Checkpoint Managers",
-    items: [
-      { title: "Checkpoint Managers", href: "checkpoint-managers.html", id: "checkpoint-managers" },
-      { title: "PyTorchCheckpointManager", href: "pytorch-manager.html", id: "pytorch-manager" },
-      { title: "KerasCheckpointManager", href: "keras-manager.html", id: "keras-manager" },
-    ],
-  },
-  {
-    group: "Reference",
-    items: [
-      { title: "Notification Service", href: "notifications.html", id: "notifications" },
+      { title: "Snapshots", href: "snapshot.html", id: "snapshot" },
+      { title: "Notifications", href: "notifications.html", id: "notifications"  },
       { title: "Utilities & Logging", href: "utilities.html", id: "utilities" },
-      { title: "Testing Phase Examples", href: "testing-examples.html", id: "testing-examples" },
-      { title: "Glossary", href: "glossary.html", id: "glossary" },
     ],
   },
+  {
+    group: "Examples",
+    items: [
+      { title: "Python", href: "python.html", id: "python" },
+      { title: "Java", href: "java.html", id: "java" },
+      { title: "C", href: "c.html", id: "c" },
+      { title: "C++", href: "cpp.html", id: "cpp" },
+    ],
+  },
+  {
+   group: "Reference",
+   items: [
+     { title: "FAQ",    href: "faq.html", id: "faq" },
+     { title: "Limitations",   href: "limitations.html",  id: "limitations" },  // ← add this
+     { title: "Glossary", href: "glossary.html", id: "glossary" },  ],
+  },
+
 ];
 
 // Flat ordered list for prev/next pagers

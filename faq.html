@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAQ — AutoCheck Docs</title>
+<meta name="description" content="Frequently asked questions about configuring, running, and resuming AutoCheck jobs.">
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/search.css">
+<link rel="stylesheet" href="css/content.css">
+</head>
+<body data-page="faq">
+<div class="shell">
+
+  <header class="topbar">
+    <button class="topbar__menu-btn" id="menu-btn" aria-label="Toggle navigation">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <a href="index.html" class="topbar__brand">
+      <img src="assets/logo-mark.png" alt="" class="topbar__logo">
+      <span class="topbar__wordmark">AutoCheck</span>
+    </a>
+    <div class="topbar__search">
+      <button class="search-trigger" data-open-search type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span>Search documentation…</span><kbd>⌘K</kbd>
+      </button>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <nav id="sidebar-nav" aria-label="Documentation sections"></nav>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <main class="main">
+    <article class="content">
+
+      <div class="eyebrow">Reference / 5.1</div>
+      <h1 class="page-title">FAQ</h1>
+      <p class="page-lede">Quick answers to the questions that come up most when getting started with AutoCheck.</p>
+
+      <div class="prose">
+        <h2 class="tick-heading" id="general">General</h2>
+      </div>
+
+      <div class="prose">
+        <h3 id="do-i-need-to-modify-my-code">Do I need to modify my code to use AutoCheck?</h3>
+        <p>No. AutoCheck is zero-code-modification — you point it at your unmodified Python script, Java program, or compiled C/C++ binary, and it observes and checkpoints it from the outside. You don't import anything, call a save function, or add any AutoCheck-specific lines to your program.</p>
+      </div>
+
+      <div class="prose">
+        <h3 id="which-languages">Which languages does AutoCheck support?</h3>
+        <p>Python, Java, C, and C++. See <a class="inline-link" href="language-support.html">Language Support</a> for what each one requires and <a class="inline-link" href="python.html">the worked examples</a> for a complete config per language.</p>
+      </div>
+
+      <div class="prose">
+        <h3 id="ml-vs-hpc">What's the difference between ML mode and HPC mode?</h3>
+        <p><code>execution_mode: ml</code> is for PyTorch or TensorFlow training jobs — AutoCheck automatically discovers your model, optimizer, and training progress. <code>execution_mode: hpc</code> is for everything else (Java, C, C++, or general long-running simulations) — you tell AutoCheck which variables to track via <code>hpc.tracked_states</code>. See <a class="inline-link" href="configuration.html#which-config">Which config do I need?</a> for the full decision table.</p>
+      </div>
+
+      <div class="prose">
+        <h2 id="configuration" class="tick-heading">Configuration</h2>
+      </div>
+
+      <div class="prose">
+        <h3 id="where-does-config-go">Where do I put config.yaml?</h3>
+        <p>In your project's working directory, then run AutoCheck from that same location — or pass an explicit path with <code>--config /path/to/my_config.yaml</code>. See <a class="inline-link" href="configuration.html#config-location">Where to place the file</a>.</p>
+      </div>
+
+      <div class="prose">
+        <h3 id="check-config-without-running">Can I check my config without actually starting the job?</h3>
+        <p>Yes — use <code>autocheck run --config config.yaml --validate-only</code>. This checks your YAML for syntax and logical errors and exits without launching your program.</p>
+      </div>
+
+      <div class="prose">
+        <h3 id="required-keys">Which config keys are actually required?</h3>
+        <p><code>system.execution_mode</code>, <code>system.language</code>, <code>checkpoint.save_dir</code>, and <code>checkpoint.program_path</code> are required for every job. <code>hpc.tracked_states</code> is required for HPC jobs specifically. Everything else has a sensible default. See <a class="inline-link" href="config-schema.html">Configuration Schema Reference</a> for the full list.</p>
+      </div>
+
+      <div class="prose">
+        <h3 id="change-checkpoint-frequency">How do I change how often checkpoints are saved?</h3>
+        <p>Set <code>checkpoint.interval</code> in seconds — for example, <code>interval: 300</code> checkpoints every 5 minutes. Pair it with <code>checkpoint.max_session_time</code> to also cap the total run length, useful for matching an HPC scheduler's wall-clock limit.</p>
+      </div>
+
+      <div class="prose">
+        <h2 id="running-jobs" class="tick-heading">Running jobs</h2>
+      </div>
+
+      <div class="prose">
+        <h3 id="stop-a-job">How do I stop a running job?</h3>
+        <p><code>autocheck stop --config config.yaml</code>. This sends a graceful stop request — AutoCheck saves one final checkpoint before exiting, so you don't lose progress made since the last automatic save.</p>
+      </div>
+
+      <div class="prose">
+        <h3 id="resume-a-job">How do I resume a job after it stops?</h3>
+        <p><code>autocheck resume --config config.yaml</code>. AutoCheck automatically finds the most recent valid checkpoint in <code>save_dir</code> and continues from there. See <a class="inline-link" href="resume-jobs.html">Resume Jobs</a> for resuming from a specific checkpoint instead of the latest one.</p>
+      </div>
+
+      <div class="prose">
+        <h3 id="resume-fails">Why does resume fail with an error about a running job?</h3>
+        <p>AutoCheck only allows one job per <code>save_dir</code> at a time, to prevent two processes from writing checkpoints to the same directory. If <code>resume</code> refuses to start, make sure the original job has actually stopped — check for a stale <code>.autocheck.pid</code> file in your <code>save_dir</code> if you're sure nothing is running.</p>
+      </div>
+
+      <div class="prose">
+        <h3 id="rerun-without-overwriting">Can I start a fresh run without overwriting my existing checkpoints?</h3>
+        <p>Yes — use <code>--force-fresh</code> with <code>run</code>. AutoCheck creates an isolated subdirectory instead of writing into the same <code>save_dir</code>, so previous checkpoints stay untouched.</p>
+      </div>
+
+      <div class="prose">
+        <h2 id="checkpoints-and-storage" class="tick-heading">Checkpoints and storage</h2>
+      </div>
+
+      <div class="prose">
+        <h3 id="what-gets-saved">What exactly gets saved in a checkpoint?</h3>
+        <p>For ML jobs: model weights, optimizer state, and training progress. For HPC jobs: whatever variables you listed under <code>hpc.tracked_states</code>. See <a class="inline-link" href="snapshot.html">Snapshots</a> for the full breakdown by framework.</p>
+      </div>
+
+      <div class="prose">
+        <h3 id="how-many-kept">How many checkpoints does AutoCheck keep?</h3>
+        <p>The number set by <code>checkpoint.keep_last</code> — the default is <code>3</code>. Older checkpoints beyond that are deleted automatically as new ones are saved, to keep disk usage under control on long runs.</p>
+      </div>
+
+      <div class="prose">
+        <h3 id="notifications">Can I get notified when a checkpoint is saved or a job fails?</h3>
+        <p>Yes — add a <code>notify</code> section to your config with your email and <code>on_checkpoint</code> / <code>on_failure</code> set to <code>true</code>. See the <code>notify</code> section of the <a class="inline-link" href="config-schema.html#notify">Configuration Schema Reference</a>.</p>
+      </div>
+
+      <div class="prose">
+        <p>Didn't find your question here? Check the <a class="inline-link" href="configuration.html">Configuration</a> and <a class="inline-link" href="language-support.html">Language Support</a> pages, or open an issue on <a class="inline-link" href="https://github.com/habibaaymannn/AutoCheck" target="_blank" rel="noopener">GitHub</a>.</p>
+      </div>
+
+      <div id="pager" class="pager"></div>
+      <div class="content-footer">
+        <span>AutoCheck Documentation</span>
+        <span>Faculty of Computers &amp; AI, Cairo University · 2025–2026</span>
+      </div>
+
+    </article>
+
+    <aside class="rail">
+      <div class="rail__label">On this page</div>
+      <ul class="rail__list" id="rail-list"></ul>
+    </aside>
+  </main>
+</div>
+
+<div class="palette-overlay" id="palette-overlay">
+  <div class="palette">
+    <div class="palette__input-row">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="palette__input" id="palette-input" placeholder="Search pages, classes, config keys…" autocomplete="off">
+      <span class="palette__esc">ESC</span>
+    </div>
+    <div class="palette__results" id="palette-results"></div>
+  </div>
+</div>
+
+<script src="js/nav-data.js"></script>
+<script src="js/search-index.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

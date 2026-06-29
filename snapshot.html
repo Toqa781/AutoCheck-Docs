@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snapshots — AutoCheck Docs</title>
+<meta name="description" content="What's captured in an AutoCheck snapshot, what lands on disk, and how older snapshots are cleaned up.">
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/search.css">
+<link rel="stylesheet" href="css/content.css">
+</head>
+<body data-page="snapshot">
+<div class="shell">
+
+  <header class="topbar">
+    <button class="topbar__menu-btn" id="menu-btn" aria-label="Toggle navigation">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <a href="index.html" class="topbar__brand">
+      <img src="assets/logo-mark.png" alt="" class="topbar__logo">
+      <span class="topbar__wordmark">AutoCheck</span>
+    </a>
+    <div class="topbar__search">
+      <button class="search-trigger" data-open-search type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span>Search documentation…</span><kbd>⌘K</kbd>
+      </button>
+    </div>
+
+  </header>
+
+  <aside class="sidebar">
+    <nav id="sidebar-nav" aria-label="Documentation sections"></nav>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <main class="main">
+    <article class="content">
+
+      <div class="eyebrow">Features / 3.1</div>
+      <h1 class="page-title">Snapshots</h1>
+      <p class="page-lede">A snapshot is the full state of your job at a single point in time — everything AutoCheck needs to resume your program exactly where it left off.</p>
+
+      <div class="prose">
+        <h2 class="tick-heading" id="what-is-a-snapshot">What's captured</h2>
+        <p>Every time a checkpoint is triggered, AutoCheck takes a snapshot of your running program and writes it to <code>checkpoint.save_dir</code>. What's inside depends on your job type:</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Job type</th><th>What's in the snapshot</th></tr></thead>
+          <tbody>
+            <tr><td>PyTorch</td><td>Model weights, optimizer state, and training progress (epoch, batch, step).</td></tr>
+            <tr><td>TensorFlow / Keras</td><td>Model weights and training metadata.</td></tr>
+            <tr><td>Scikit-Learn</td><td>The fitted pipeline or estimator and its associated metadata.</td></tr>
+            <tr><td>HPC (Java, C, C++)</td><td>Whatever variables you listed under <code>hpc.tracked_states</code> in your config.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="prose">
+        <p>You don't choose what to snapshot for ML jobs — AutoCheck discovers your model, optimizer, and training state on its own. For HPC jobs, <code>hpc.tracked_states</code> is exactly how you tell AutoCheck what to include.</p>
+      </div>
+
+      <div class="prose">
+        <h2 id="on-disk" class="tick-heading">What lands on disk</h2>
+        <p>Each snapshot is written into <code>checkpoint.save_dir</code> alongside a small manifest file, <code>session_info.json</code>, which records details about the run that produced it — useful if you ever need to confirm which job a checkpoint belongs to.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Job type</th><th>What you'll see in <code>save_dir</code></th></tr></thead>
+          <tbody>
+            <tr><td>PyTorch</td><td>Files named like <code>checkpoint_00000500.pt</code>, one per saved step.</td></tr>
+            <tr><td>TensorFlow / Keras</td><td>A subfolder per checkpoint (e.g. <code>checkpoint_00000500/</code>) containing the weight shard files.</td></tr>
+            <tr><td>Scikit-Learn</td><td>A versioned subfolder per checkpoint, with an integrity hash alongside the saved pipeline.</td></tr>
+            <tr><td>HPC (Java, C, C++)</td><td>A timestamp-named file or folder per checkpoint, since these jobs don't have a step or epoch counter.</td></tr>
+            <tr><td>All job types</td><td><code>session_info.json</code> — a manifest with the host, process, and program path for the run.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="prose">
+        <div class="callout callout--info">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div>
+            <strong>Safe even if the power cuts out</strong>
+            <p>Snapshot writes are crash-safe: a partial or interrupted write never corrupts your most recent good checkpoint. If your job loses power mid-save, the previous snapshot is still there to resume from.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="prose">
+        <h2 id="pruning" class="tick-heading">How old snapshots are cleaned up</h2>
+        <p>Keeping every snapshot forever would fill up your disk on a long run, so AutoCheck only keeps a rolling window of the most recent ones. This is controlled by <code>checkpoint.keep_last</code> in your config — set it to <code>3</code>, for example, and only the 3 most recent snapshots are kept; older ones are deleted automatically as new ones are saved.</p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">yaml</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+        <pre><code><span class="tok-key">checkpoint</span>:
+  <span class="tok-key">keep_last</span>: <span class="tok-num">3</span>   <span class="tok-comment"># only the 3 most recent snapshots are kept on disk</span></code></pre>
+      </div>
+
+      <div class="prose">
+        <p>This applies regardless of language or framework — the pruning behavior is the same whether you're running a PyTorch job or an HPC simulation.</p>
+      </div>
+
+      <div class="prose">
+        <h2 id="when-taken" class="tick-heading">When a snapshot is taken</h2>
+        <p>Snapshots happen automatically, on the schedule defined by <code>checkpoint.interval</code>, and one final time when your job finishes or is stopped — either by you, or because <code>checkpoint.max_session_time</code> was reached. You never need to trigger a snapshot yourself.</p>
+        <p>See <a class="inline-link" href="configuration.html">Configuration</a> for <code>interval</code>, <code>max_session_time</code>, and <code>keep_last</code>, and <a class="inline-link" href="resume-jobs.html">Resume Jobs</a> for how a saved snapshot gets loaded back in.</p>
+      </div>
+
+      <div id="pager" class="pager"></div>
+      <div class="content-footer">
+        <span>AutoCheck Documentation</span>
+        <span>Faculty of Computers &amp; AI, Cairo University · 2025–2026</span>
+      </div>
+
+    </article>
+
+    <aside class="rail">
+      <div class="rail__label">On this page</div>
+      <ul class="rail__list" id="rail-list"></ul>
+    </aside>
+  </main>
+</div>
+
+<div class="palette-overlay" id="palette-overlay">
+  <div class="palette">
+    <div class="palette__input-row">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="palette__input" id="palette-input" placeholder="Search pages, classes, config keys…" autocomplete="off">
+      <span class="palette__esc">ESC</span>
+    </div>
+    <div class="palette__results" id="palette-results"></div>
+  </div>
+</div>
+
+<script src="js/nav-data.js"></script>
+<script src="js/search-index.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

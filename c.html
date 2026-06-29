@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C Example — AutoCheck Docs</title>
+<meta name="description" content="A complete walkthrough of running a compiled C HPC job under AutoCheck supervision.">
+<link rel="icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/search.css">
+<link rel="stylesheet" href="css/content.css">
+</head>
+<body data-page="c">
+<div class="shell">
+
+  <header class="topbar">
+    <button class="topbar__menu-btn" id="menu-btn" aria-label="Toggle navigation">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <a href="index.html" class="topbar__brand">
+      <img src="assets/logo-mark.png" alt="" class="topbar__logo">
+      <span class="topbar__wordmark">AutoCheck</span>
+    </a>
+    <div class="topbar__search">
+      <button class="search-trigger" data-open-search type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span>Search documentation…</span><kbd>⌘K</kbd>
+      </button>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <nav id="sidebar-nav" aria-label="Documentation sections"></nav>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <main class="main">
+    <article class="content">
+
+      <div class="eyebrow">Examples / 6.2</div>
+      <h1 class="page-title">C Example</h1>
+      <p class="page-lede">A complete, end-to-end walkthrough of supervising a compiled C simulation with AutoCheck — config, run, resume, and what ends up on disk.</p>
+
+      <div class="prose">
+        <h2 class="tick-heading" id="before-the-config">Before you write the config</h2>
+        <ul class="prose-list">
+          <li><strong>Install GDB</strong> and make sure it's on your <code>PATH</code> — AutoCheck uses it to attach to your running binary.</li>
+          <li><strong>Compile with debug symbols</strong> (<code>-g</code>). A stripped release build won't expose the variable names AutoCheck needs to read.</li>
+        </ul>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">bash</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+        <pre><code>gcc -g -o simulation Testing_phase/simulation.c</code></pre>
+      </div>
+
+      <div class="prose">
+        <h2 id="the-config" class="tick-heading">The config</h2>
+        <p>Save this as <code>config.yaml</code> next to your compiled binary. <code>execution_mode: hpc</code> and <code>language: c</code> tell AutoCheck to read the variables under <code>hpc.tracked_states</code> via GDB, using each name exactly as it appears in your source.</p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">yaml</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+        <pre><code><span class="tok-key">system</span>:
+  <span class="tok-key">execution_mode</span>: <span class="tok-str">hpc</span>
+  <span class="tok-key">fram_schd</span>: <span class="tok-str">general</span>
+  <span class="tok-key">run_id</span>: <span class="tok-str">run1</span>
+  <span class="tok-key">language</span>: <span class="tok-str">c</span>
+
+<span class="tok-key">checkpoint</span>:
+  <span class="tok-key">method</span>: <span class="tok-str">time</span>
+  <span class="tok-key">interval</span>: <span class="tok-num">300</span>             <span class="tok-comment"># seconds between checkpoints</span>
+  <span class="tok-key">max_session_time</span>: <span class="tok-num">900</span>     <span class="tok-comment"># 15 minutes total</span>
+  <span class="tok-key">safety_buffer_seconds</span>: <span class="tok-num">3</span>
+  <span class="tok-key">keep_last</span>: <span class="tok-num">3</span>
+  <span class="tok-key">save_dir</span>: <span class="tok-str">checkpoints</span>
+  <span class="tok-key">program_path</span>: <span class="tok-str">Testing_phase/simulation</span>
+
+<span class="tok-key">hpc</span>:
+  <span class="tok-key">tracked_states</span>:
+    - <span class="tok-key">name</span>: <span class="tok-str">iteration_count</span>
+      <span class="tok-key">type</span>: <span class="tok-str">int</span>
+      <span class="tok-key">source</span>: <span class="tok-str">gdb</span></code></pre>
+      </div>
+
+      <div class="prose">
+        <p><code>checkpoint.program_path</code> points at the compiled binary, not the <code>.c</code> source file.</p>
+      </div>
+
+      <div class="prose">
+        <h2 id="run-it" class="tick-heading">Running it</h2>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">bash</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+        <pre><code>autocheck run --config config.yaml</code></pre>
+      </div>
+
+      <div class="prose">
+        <p>To check the config for errors first, without launching the binary:</p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">bash</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+        <pre><code>autocheck run --config config.yaml --validate-only</code></pre>
+      </div>
+
+      <div class="prose">
+        <h2 id="on-disk" class="tick-heading">What you'll see in save_dir</h2>
+        <p>Like other HPC jobs, checkpoints are named by timestamp rather than step or epoch:</p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">text</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+        <pre><code>checkpoints/
+├── checkpoint_20260629-141200/
+├── checkpoint_20260629-141700/
+├── checkpoint_20260629-142200/
+├── session_info.json
+└── .autocheck.pid</code></pre>
+      </div>
+
+      <div class="prose">
+        <p>Each checkpoint holds the value of <code>iteration_count</code> at that moment. Only the 3 most recent checkpoints are kept, per <code>keep_last: 3</code>.</p>
+      </div>
+
+      <div class="prose">
+        <h2 id="stopping-resuming" class="tick-heading">Stopping and resuming</h2>
+        <p>Stop the job gracefully — a final checkpoint is saved first:</p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">bash</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+        <pre><code>autocheck stop --config config.yaml</code></pre>
+      </div>
+
+      <div class="prose">
+        <p>Resume from the latest checkpoint:</p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">bash</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+        <pre><code>autocheck resume --config config.yaml</code></pre>
+      </div>
+
+      <div class="prose">
+        <p><code>iteration_count</code> is restored to its saved value and your program continues from there. See <a class="inline-link" href="language-support.html#c-cpp">Language Support — C and C++</a> for requirements, and <a class="inline-link" href="cpp.html">the C++ example</a> if you're compiling with g++ instead.</p>
+      </div>
+
+      <div id="pager" class="pager"></div>
+      <div class="content-footer">
+        <span>AutoCheck Documentation</span>
+        <span>Faculty of Computers &amp; AI, Cairo University · 2025–2026</span>
+      </div>
+
+    </article>
+
+    <aside class="rail">
+      <div class="rail__label">On this page</div>
+      <ul class="rail__list" id="rail-list"></ul>
+    </aside>
+  </main>
+</div>
+
+<div class="palette-overlay" id="palette-overlay">
+  <div class="palette">
+    <div class="palette__input-row">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="palette__input" id="palette-input" placeholder="Search pages, classes, config keys…" autocomplete="off">
+      <span class="palette__esc">ESC</span>
+    </div>
+    <div class="palette__results" id="palette-results"></div>
+  </div>
+</div>
+
+<script src="js/nav-data.js"></script>
+<script src="js/search-index.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

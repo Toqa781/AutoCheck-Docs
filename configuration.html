@@ -43,11 +43,11 @@
     <nav id="sidebar-nav" aria-label="Documentation sections"></nav>
   </aside>
   <div class="scrim" id="scrim"></div>
-
+    
   <main class="main">
     <article class="content">
 
-      <div class="eyebrow">Configuration / 4</div>
+      <div class="eyebrow">Configuration / 2.1</div>
       <h1 class="page-title">Configuration System</h1>
       <p class="page-lede">All AutoCheck behavior is controlled through a single <code>config.yaml</code> file — no code changes required in your program.</p>
 
@@ -136,11 +136,162 @@
         <div class="code-block__header"><span class="code-block__lang">bash</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
         <pre><code>python runner.py --config /path/to/my_config.yaml</code></pre>
       </div>
+      
+      <h1 class="page-title">Configuration Schema Reference</h1>
+      <p class="page-lede">Every key recognized in <code>config.yaml</code>, with its type, default, and a plain-English description of what it controls.</p>
+
+      <!-- system -->
+      <div class="prose">
+        <h2 class="tick-heading" id="system">system</h2>
+        <p>Top-level identity and mode settings. All keys in this section are <strong>required</strong>.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Key</th><th>Type</th><th>Values</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>execution_mode</code></td><td>enum</td><td><code>ml</code> · <code>hpc</code></td><td>Whether AutoCheck is supervising an ML training job or an HPC compute job. Controls which sections are read.</td></tr>
+            <tr><td><code>fram_schd</code></td><td>string</td><td><code>pytorch</code> · <code>tensorflow</code> · <code>general</code></td><td>The framework or scheduler in use. Set to <code>pytorch</code> or <code>tensorflow</code> for ML jobs; <code>general</code> for HPC jobs.</td></tr>
+            <tr><td><code>run_id</code></td><td>string</td><td>any string</td><td>A label for this run, used to name checkpoint folders and log entries. Choose something meaningful, e.g. <code>experiment-3</code>.</td></tr>
+            <tr><td><code>language</code></td><td>enum</td><td><code>python</code> · <code>c</code> · <code>cpp</code> · <code>java</code></td><td>The language of your target program. AutoCheck uses this to select the correct attachment and state-capture mechanism. Required — no default.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- checkpoint -->
+      <div class="prose">
+        <h2 id="checkpoint">checkpoint</h2>
+        <p>Controls when, where, and how many checkpoints are saved. Applies to both ML and HPC jobs.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Key</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>method</code></td><td>enum</td><td><code>time</code></td><td>How checkpointing is triggered. Currently <code>time</code> — saves on a fixed time interval.</td></tr>
+            <tr><td><code>interval</code></td><td>int</td><td>—</td><td>Seconds between automatic checkpoints. For example, <code>300</code> saves every 5 minutes.</td></tr>
+            <tr><td><code>max_session_time</code></td><td>int</td><td>—</td><td>Total seconds AutoCheck will run before stopping and saving a final checkpoint. Set this to match your HPC scheduler's wall-clock limit, minus some margin.</td></tr>
+            <tr><td><code>safety_buffer_seconds</code></td><td>int</td><td><code>60</code></td><td>How many seconds before <code>max_session_time</code> the final checkpoint is triggered. Gives the save operation time to finish before the scheduler cuts the job.</td></tr>
+            <tr><td><code>keep_last</code></td><td>int</td><td><code>3</code></td><td>Number of most-recent checkpoints to keep on disk. Older ones are deleted automatically.</td></tr>
+            <tr><td><code>save_dir</code></td><td>path</td><td>—</td><td>Folder where checkpoint files are saved. Must be writable. AutoCheck checks this at startup.</td></tr>
+            <tr><td><code>program_path</code></td><td>path</td><td>—</td><td>Path to your program's entry point — the <code>.py</code>, <code>.java</code>, or compiled binary that AutoCheck will launch and supervise.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ml_model -->
+      <div class="prose">
+        <h2 id="ml_model">ml_model</h2>
+        <p>ML jobs only (<code>execution_mode: ml</code>). Metadata about the model being trained.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Key</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code></td><td>string</td><td>—</td><td>A name for your model, e.g. <code>deepNN</code>. Used in log output and checkpoint folder naming.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- hpc -->
+      <div class="prose">
+        <h2 id="hpc">hpc</h2>
+        <p>HPC jobs only (<code>execution_mode: hpc</code>). Defines the program variables AutoCheck will capture at each checkpoint.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>tracked_states</code></td><td>list</td><td>A list of program variables to capture. Each entry has three fields: <code>name</code> (the variable name in your program), <code>type</code> (e.g. <code>float</code>, <code>int</code>), and <code>source</code> (how AutoCheck reads it — currently <code>jdwp</code> for Java).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="prose"><p>Example with multiple tracked variables:</p></div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">yaml</span><button class="code-block__copy" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"/></svg> Copy</button></div>
+        <pre><code><span class="tok-key">hpc</span>:
+  <span class="tok-key">tracked_states</span>:
+    - <span class="tok-key">name</span>: <span class="tok-str">progress_percent</span>
+      <span class="tok-key">type</span>: <span class="tok-str">float</span>
+      <span class="tok-key">source</span>: <span class="tok-str">jdwp</span>
+    - <span class="tok-key">name</span>: <span class="tok-str">iteration_count</span>
+      <span class="tok-key">type</span>: <span class="tok-str">int</span>
+      <span class="tok-key">source</span>: <span class="tok-str">jdwp</span></code></pre>
+      </div>
+
+      <!-- notify -->
+      <div class="prose">
+        <h2 id="notify">notify</h2>
+        <p>Optional for both job types. Sends email alerts when checkpoints are saved or when the job fails.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Key</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>email</code></td><td>string</td><td>—</td><td>Email address to send notifications to.</td></tr>
+            <tr><td><code>on_checkpoint</code></td><td>bool</td><td><code>false</code></td><td>Send an email every time a checkpoint is successfully saved.</td></tr>
+            <tr><td><code>on_failure</code></td><td>bool</td><td><code>false</code></td><td>Send an email if the job crashes or a checkpoint write fails.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <h1 class="page-title">Configuration Validation</h1>
+      <p class="page-lede">AutoCheck reads and validates your <code>config.yaml</code> before launching the job. Problems are caught immediately at startup  not hours into a run.</p>
+
 
       <div class="prose">
-        <h2 id="next">Continue to</h2>
-        <p>See the <a class="inline-link" href="config-schema.html">Configuration Schema Reference</a> for every available key and its default value.</p>
+        <h2 class="tick-heading" id="what-is-checked">What gets checked</h2>
       </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Check</th><th>Applies to</th><th>What happens on failure</th></tr></thead>
+          <tbody>
+            <tr><td><code>system.language</code> is present and valid</td><td>All jobs</td><td>AutoCheck stops immediately  there is no default.</td></tr>
+            <tr><td><code>system.execution_mode</code> is <code>ml</code> or <code>hpc</code></td><td>All jobs</td><td>AutoCheck stops and reports the unrecognised value.</td></tr>
+            <tr><td><code>checkpoint.save_dir</code> is writable</td><td>All jobs</td><td>AutoCheck stops  an unwritable path discovered mid-run would silently lose your checkpoints.</td></tr>
+            <tr><td><code>checkpoint.program_path</code> exists</td><td>All jobs</td><td>AutoCheck stops and reports the missing file path.</td></tr>
+            <tr><td><code>system.fram_schd</code> is <code>pytorch</code> or <code>tensorflow</code></td><td>ML jobs</td><td>AutoCheck stops and reports the invalid value.</td></tr>
+            <tr><td><code>hpc.tracked_states</code> is present and non-empty</td><td>HPC jobs</td><td>AutoCheck stops — without tracked states there is nothing to checkpoint.</td></tr>
+            <tr><td>Each tracked state has <code>name</code>, <code>type</code>, and <code>source</code></td><td>HPC jobs</td><td>AutoCheck stops and identifies the incomplete entry.</td></tr>
+            <tr><td><code>notify.email</code> is a valid address (if <code>notify</code> is present)</td><td>Jobs with notifications</td><td>AutoCheck stops rather than running silently with broken notifications.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="prose">
+        <div class="callout callout--info">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div>
+            <strong>Defaults are applied silently</strong>
+            <p>Optional keys you leave out  like <code>safety_buffer_seconds</code> or <code>keep_last</code> — are filled in automatically. You only see an error for keys that are truly required and missing.</p>
+          </div>
+        </div>
+
+        <h2 id="common-errors">Common errors and fixes</h2>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Error message</th><th>Likely cause</th><th>Fix</th></tr></thead>
+          <tbody>
+            <tr><td><code>system.language is required</code></td><td><code>language</code> key missing from the <code>system</code> section.</td><td>Add <code>language: python</code> (or <code>java</code>, <code>c</code>, <code>cpp</code>) under <code>system:</code>.</td></tr>
+            <tr><td><code>Unknown execution_mode</code></td><td><code>execution_mode</code> is misspelled or set to an unsupported value.</td><td>Use <code>ml</code> or <code>hpc</code> exactly.</td></tr>
+            <tr><td><code>save_dir is not writable</code></td><td>The checkpoint folder doesn't exist or AutoCheck doesn't have write permission.</td><td>Create the folder first, or point <code>save_dir</code> to a location you own.</td></tr>
+            <tr><td><code>program_path not found</code></td><td>The path to your program is wrong or the file doesn't exist yet.</td><td>Check the path is correct relative to where you run AutoCheck, or use an absolute path.</td></tr>
+            <tr><td><code>tracked_states is empty</code></td><td>The <code>hpc</code> section exists but has no entries under <code>tracked_states</code>.</td><td>Add at least one variable entry with <code>name</code>, <code>type</code>, and <code>source</code>.</td></tr>
+            <tr><td><code>Invalid email address</code></td><td>The <code>notify.email</code> value is malformed.</td><td>Double-check the email address format in your config.</td></tr>
+          </tbody>
+        </table>
+        
+      </div>
+      <h2 id="next">Continue to</h2>
+        <p><a class="inline-link" href="checkpoint-loop.html">Programming languages supported by AutoCheck</a>.</p>
 
       <div id="pager" class="pager"></div>
       <div class="content-footer">
@@ -149,16 +300,11 @@
       </div>
 
     </article>
-
     <aside class="rail">
       <div class="rail__label">On this page</div>
       <ul class="rail__list" id="rail-list"></ul>
-      <div class="rail__card">
-        <h4>Edit this page</h4>
-        <p>Found an inaccuracy? Source files live in the repository.</p>
-        <a class="edit-link" href="https://github.com/habibaaymannn/AutoCheck" target="_blank" rel="noopener">View on GitHub <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M7 17L17 7M7 7h10v10"/></svg></a>
-      </div>
     </aside>
+
   </main>
 </div>
 
