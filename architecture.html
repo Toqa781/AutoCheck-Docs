@@ -63,6 +63,29 @@
       </div>
 
       <div class="prose">
+        <div class="prose">
+  <h2 id="architecture">Architecture</h2>
+
+  <div class="architecture-section">
+    <h3 id="ml-architecture">ML Architecture</h3>
+    <p>This section covers the architecture for Machine Learning workflows.</p>
+    <ul>
+      <li><strong>Install Prerequisites:</strong> Ensure Python 3.8+, TensorFlow, and PyTorch are installed.</li>
+      <li><strong>State Tracking:</strong> Tracks epochs, batches, loss, and accuracy.</li>
+      <li><strong>Trigger Basis:</strong> Step or epoch boundaries.</li>
+    </ul>
+  </div>
+
+  <div class="architecture-section">
+    <h3 id="hpc-architecture">HPC Architecture</h3>
+    <p>This section covers the architecture for High-Performance Computing workflows.</p>
+    <ul>
+      <li><strong>Install Prerequisites:</strong> Ensure MPI libraries and HPC scheduler tools are installed.</li>
+      <li><strong>State Tracking:</strong> Tracks elapsed time, phases, and job steps.</li>
+      <li><strong>Trigger Basis:</strong> Wall-clock intervals.</li>
+    </ul>
+  </div>
+</div>
         <h2 class="tick-heading" id="supervision-chain">Supervision chain</h2>
         <p>AutoCheck's defining trait is that supervision happens from <em>outside</em> the training process's normal control flow. The entry point starts an <code>AutonomousController</code> on the main thread; that controller then launches the user's actual training script on a separate daemon thread. From that point on, two things run concurrently: your code, executing exactly as written, and the controller, watching a shared <code>StateTracker</code> for signals about when to act.</p>
       </div>

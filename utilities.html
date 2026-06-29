@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Utilities — AutoCheck Docs</title>
-<meta name="description" content="Logging infrastructure, enumerations, and custom exceptions used across AutoCheck.">
+<title>Logging & Observability — AutoCheck Docs</title>
+<meta name="description" content="Log levels, output format, reading checkpoint events, and custom exception types used across AutoCheck.">
 <link rel="icon" href="assets/logo-mark.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fjalla+One&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -51,37 +51,116 @@
     <article class="content">
 
       <div class="eyebrow">Reference / 9</div>
-      <h1 class="page-title">Utilities</h1>
-      <p class="page-lede">Structured logging infrastructure plus the enumerations and custom exceptions used throughout the controller and layers.</p>
+      <h1 class="page-title">Logging &amp; Observability</h1>
+      <p class="page-lede">A single structured log stream tells the complete story of every run: when checkpoints fired, why, and whether they succeeded. This page explains how to read it and what each entry means.</p>
 
-      <div class="source-files">
-        <span class="source-files__label">Relevant source files</span>
-        <span class="source-chip">logger.py</span>
-        <span class="source-chip">enums.py</span>
-        <span class="source-chip">error.py</span>
+
+      <!-- ── Logging ─────────────────────────────────── -->
+      <div class="prose">
+        <h2 class="tick-heading" id="logging">Logging infrastructure</h2>
+        <p>A shared, structured logger is used consistently across <code>AutonomousController</code>, <code>SignalLayer</code>, <code>JavaLayer</code>, and every <code>CheckpointManager</code> implementation. All output goes to <strong>stdout</strong> by default and can be redirected to a file or piped into any standard log aggregator.</p>
+
+        <h2 id="log-format">Log format</h2>
+        <p>Each line follows the pattern:</p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">text</span></div>
+        <pre><code>[YYYY-MM-DD HH:MM:SS] LEVEL  message — key=value key=value …</code></pre>
       </div>
 
       <div class="prose">
-        <h2 class="tick-heading" id="logging">Logging infrastructure</h2>
-        <p>A shared, structured logger used consistently across <code>AutonomousController</code>, <code>SignalLayer</code>, and every <code>CheckpointManager</code> implementation, so a single log stream tells the complete story of a run: when checkpoints fired, why, and whether they succeeded.</p>
-
-        <h2 id="exceptions">Enumerations and custom exceptions</h2>
-        <p>Two small but load-bearing modules underpin the rest of the system.</p>
+        <h2 id="log-levels">Log levels</h2>
       </div>
 
       <div class="table-wrap">
         <table class="doc-table">
-          <thead><tr><th>Module</th><th>Contents</th></tr></thead>
+          <thead><tr><th>Level</th><th>Meaning</th><th>Examples</th></tr></thead>
           <tbody>
-            <tr><td><code>enums.py</code></td><td>Job-state and framework enumerations, such as the <code>pytorch</code> / <code>tensorflow</code> framework selector used in <code>config.yaml</code>.</td></tr>
-            <tr><td><code>error.py</code></td><td>Custom exception types raised by <code>ConfigManager</code> validation and checkpoint I/O failures, so callers can distinguish a bad config from a failed disk write.</td></tr>
+            <tr><td><code>INFO</code></td><td>Normal operating events.</td><td>Checkpoint saved, job resumed, session started.</td></tr>
+            <tr><td><code>WARN</code></td><td>Unexpected but recoverable condition.</td><td>Orphaned JVM port detected and cleared.</td></tr>
+            <tr><td><code>ERROR</code></td><td>An operation failed. The job may stop.</td><td>Checkpoint write failed, port still occupied after cleanup.</td></tr>
           </tbody>
         </table>
       </div>
 
       <div class="prose">
-        <h2 id="next">See also</h2>
-        <p><a class="inline-link" href="config-manager.html">ConfigManager Internals</a> for how <code>error.py</code> exceptions surface during validation.</p>
+        <h2 id="reading-logs">Reading checkpoint events</h2>
+        <p>The log entries below are what a healthy run looks like — use them as a reference to confirm AutoCheck is working as expected.</p>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">log — annotated healthy run (Python ML)</span></div>
+        <pre><code>[2026-06-25 09:00:00] INFO  AutoCheck started — language=python, framework=pytorch, interval=30min
+[2026-06-25 09:30:01] INFO  checkpoint saved → ./checkpoints/train/epoch-10-batch-200/
+[2026-06-25 09:30:01] INFO  next checkpoint in 30 min
+[2026-06-25 10:00:02] INFO  checkpoint saved → ./checkpoints/train/epoch-20-batch-200/
+[2026-06-25 10:00:02] INFO  session time limit reached — writing final checkpoint
+[2026-06-25 10:00:03] INFO  checkpoint saved → ./checkpoints/train/epoch-20-batch-200/ (final)
+[2026-06-25 10:00:03] INFO  job stopped cleanly</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">log — annotated healthy run (Java HPC)</span></div>
+        <pre><code>[2026-06-25 14:00:00] INFO  AutoCheck started — language=java, interval=30min, limit=120min
+[2026-06-25 14:00:01] INFO  JVM attached — jdwp_port=5005, control_port=5006
+[2026-06-25 14:30:01] INFO  checkpoint saved → ./checkpoints/hpc/t-30min/
+[2026-06-25 14:30:01] INFO  next checkpoint in 30 min
+[2026-06-25 15:30:04] INFO  session time limit reached — writing final checkpoint
+[2026-06-25 15:30:05] INFO  checkpoint saved → ./checkpoints/hpc/t-90min/
+[2026-06-25 15:30:05] INFO  job stopped cleanly — resume with: autocheck resume hpc</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">log — port cleanup on restart</span></div>
+        <pre><code>[2026-06-25 16:00:00] INFO  AutoCheck started — language=java
+[2026-06-25 16:00:00] WARN  jdwp_port 5005 in use — killing orphaned PID 18342
+[2026-06-25 16:00:01] INFO  port 5005 cleared
+[2026-06-25 16:00:01] INFO  checkpoint found → ./checkpoints/hpc/t-90min/
+[2026-06-25 16:00:02] INFO  state restored successfully — resuming</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block__header"><span class="code-block__lang">log — checkpoint write failure</span></div>
+        <pre><code>[2026-06-25 17:30:01] ERROR checkpoint write failed — path=./checkpoints/hpc/t-30min/ reason=PermissionError
+[2026-06-25 17:30:01] ERROR on_failure fired — job stopping to prevent data loss</code></pre>
+      </div>
+
+      <!-- ── Enums & Exceptions ──────────────────────── -->
+      <div class="prose">
+        <h2 class="tick-heading" id="exceptions">Errors &amp; Exceptions</h2>
+        <p>Two small but load-bearing modules underpin the rest of the system.</p>
+      </div>
+
+      <!-- <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Module</th><th>Contents</th></tr></thead>
+          <tbody>
+            <tr><td><code>enums.py</code></td><td>Job-state and framework enumerations, such as the <code>pytorch</code> / <code>tensorflow</code> framework selector and language identifiers used in <code>config.yaml</code>.</td></tr>
+            <tr><td><code>error.py</code></td><td>Custom exception types raised by <code>ConfigManager</code> validation and checkpoint I/O failures, so callers can distinguish a bad config from a failed disk write.</td></tr>
+          </tbody>
+        </table>
+      </div> -->
+
+      <div class="prose">
+        <h2 id="exception-types">Exception types in error.py</h2>
+      </div>
+
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th>Exception</th><th>Raised when</th><th>What to do</th></tr></thead>
+          <tbody>
+            <tr><td><code>ConfigError</code></td><td>A required key is missing, a value is the wrong type, or a Java port is out of range or conflicting.</td><td>Check <code>config.yaml</code> against the <a class="inline-link" href="config-schema.html">Schema Reference</a>.</td></tr>
+            <tr><td><code>CheckpointWriteError</code></td><td>A checkpoint could not be written to <code>storage_path</code> — disk full, permissions issue, or I/O error.</td><td>Verify the path is writable and has sufficient space.</td></tr>
+            <tr><td><code>CheckpointLoadError</code></td><td>A resume was attempted but the checkpoint directory is missing, corrupted, or incompatible with the current config.</td><td>Confirm the checkpoint path exists and the config matches the original run.</td></tr>
+            <tr><td><code>PortError</code></td><td>A Java JDWP or control port could not be cleared after the automatic cleanup attempt.</td><td>Manually kill the process on the conflicting port, or remap to a different port in <code>config.yaml</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="prose">
+        <h2 id="see-also">See also</h2>
+        <p><a class="inline-link" href="config-manager.html">ConfigManager Internals</a> for how <code>error.py</code> exceptions surface during validation, and <a class="inline-link" href="notifications.html">Notification Service</a> for how <code>on_failure</code> events are emitted.</p>
       </div>
 
       <div id="pager" class="pager"></div>
